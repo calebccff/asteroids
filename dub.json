@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"caleb"
+	],
+	"copyright": "Copyright © 2019, caleb",
+	"dependencies": {
+		"dsfml": "~>2.1.1"
+	},
+	"description": "Simple multiplayer game",
+	"license": "proprietary",
+	"name": "float-asteroids"
+}
