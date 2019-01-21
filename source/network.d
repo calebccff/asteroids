@@ -7,9 +7,9 @@ class Buffer{
     ubyte[] buffer;
     ubyte[] recv;
     Socket net;
+    Socket other;
 
     bool host;
-    Address other;
 
     this(bool host, ushort bindport){
         this.host = host;
@@ -20,6 +20,7 @@ class Buffer{
     }
 
     ~this(){
+        other.close();
         net.shutdown(SocketShutdown.BOTH);
         net.close();
     }
@@ -32,33 +33,25 @@ class Buffer{
     }
 
     void listen(){
-        Socket client;
-        
         long bytesRead;
         try{
-            client = net.accept();
+            other = net.accept();
         }catch(SocketAcceptException e){
-            return;
+            return; //Return if no client waiting to connect
         }
-        writeln(client.localAddress.toString);
-        while((bytesRead = client.receive(recv)) > 0){
-            writeln(recv);
-            client.send(recv);
-        }
-        
-        client.close();
+        writeln(other.localAddress.toString);        
         recv = [0];
     }
 
-    void setOther(string ip, ushort port){
-        other = new InternetAddress(ip, port);
+    void setHost(string ip, ushort port){
+        //other = new InternetAddress(ip, port);
     }
 
     void startPacket(PacketType t){
         buffer ~= t & 0xff;
     }
     void flush(){
-        net.sendTo(buffer, other);
+        other.send("TEST");
     }
     void add(int i){
         buffer ~= (i >> 24) & 0xff;

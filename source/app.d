@@ -255,6 +255,7 @@ void gameLoop(){
 	if(DEBUG)
 		window.draw(ahitbox);
 	text(to!string(score), 48, meta.width*0.1, meta.height*0.1);
+
 }
 
 void handleEvent(Event event){
