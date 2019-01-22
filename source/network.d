@@ -10,13 +10,16 @@ class Buffer{
     Socket other;
 
     bool host;
+    bool connected;
 
     this(bool host, ushort bindport){
         this.host = host;
         net = new Socket(AddressFamily.INET, SocketType.STREAM);
-        net.bind(new InternetAddress("localhost", 3333));
-        net.listen(1);
-        net.blocking = false;
+        if(host){
+          net.blocking = false;
+          net.bind(new InternetAddress("localhost", 3331));
+          net.listen(1);
+        }
     }
 
     ~this(){
@@ -25,33 +28,40 @@ class Buffer{
         net.close();
     }
 
-    enum PacketType{
+    static enum PacketType{
         Player    =0x10,
         Objects   =0x20,
         GameStart =0x30,
-        GameOver  =0x40   
+        GameOver  =0x40
     }
 
     void listen(){
         long bytesRead;
         try{
             other = net.accept();
+            connected = true;
         }catch(SocketAcceptException e){
             return; //Return if no client waiting to connect
         }
-        writeln(other.localAddress.toString);        
-        recv = [0];
     }
 
-    void setHost(string ip, ushort port){
-        //other = new InternetAddress(ip, port);
+    void connect(string ip, ushort port){
+      net.connect(new InternetAddress(ip, port));
+      connected = true;
+      net.blocking = false;
+    }
+
+    void receive(){
+      net.receive(recv);
+      writeln(recv);
     }
 
     void startPacket(PacketType t){
         buffer ~= t & 0xff;
     }
     void flush(){
-        other.send("TEST");
+        other.send(buffer);
+        buffer = [];
     }
     void add(int i){
         buffer ~= (i >> 24) & 0xff;

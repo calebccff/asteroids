@@ -47,14 +47,15 @@ Buffer buffer;
 
 //Strctures
 enum Scene{
-	startup=-1,
-	menu=0,
-	game=1,
-	pause=2,
-	gameover=3
+	startup,
+	menu,
+	gameHost,
+  gameClient,
+	gameover
 }
 struct Network{
 	string ip = "127.0.0.1";
+  ushort port = 3331;
 	bool isHost = true;
 }
 struct Meta{
@@ -84,6 +85,7 @@ void setup(){
 
 void gameInit(){
 	player = new Player([Keyboard.Key.W, Keyboard.Key.A, Keyboard.Key.D, Keyboard.Key.Space]);
+  asts = [];
 	for(int i = 0; i < 5; i++){
 		asts ~= new Asteroid();
 	}
@@ -99,17 +101,16 @@ void text(string t, int s, double x, double y){
 
 void draw(int fc){
 	meta.frameCount++;
-	buffer.listen();
 	switch(scene){
 		case Scene.menu:
 			menu();
 			break;
-		case Scene.game:
-			gameLoop();
+		case Scene.gameHost:
+			gameHostLoop();
 			break;
-		case Scene.pause:
-			paused();
-			break;
+    case Scene.gameClient:
+  		gameClientLoop();
+  		break;
 		case Scene.gameover:
 			gameover();
 			break;
@@ -131,23 +132,6 @@ void menu(){
 		ast.move();
 		window.draw(ast.display());
 	}
-
-	if(meta.startGame){
-		asts = [];
-		for(int i = 0; i < 5; i++){
-			asts ~= new Asteroid();
-		}
-		scene = Scene.game;
-	}
-}
-
-void paused(){
-	window.draw(player.display());
-	foreach(ref ast; asts){
-		window.draw(ast.display());
-	}
-
-	text("PAUSED, PRESS ESC TO CONTINUE OR Q TO QUIT", 32, meta.width/2, meta.height*0.1);
 }
 
 void gameover(){
@@ -170,7 +154,7 @@ void gameover(){
 		}
 	}
 }
-
+/*
 void startup(){
 	writeln("#############");
 	writeln("# Main Menu #");
@@ -197,9 +181,9 @@ void startup(){
 			while(1){}
 		}
 	}
-}
+}*/
 
-void gameLoop(){
+void gameHostLoop(){
 	player.interact();
 	for(long i = asts.length-1; i >= 0; i--){
 		auto a = FloatRect(asts[i].pos.x, asts[i].pos.y, sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
@@ -208,23 +192,19 @@ void gameLoop(){
 			if(meta.frameCount < 60){
 				asts = remove(asts, i);
 			}else{
-				writeln("#############");
-				writeln("# GAME OVER #");
-				writeln("#############");
-				//window.close();
-				scene = Scene.gameover;
-				meta.frameCount = -1;
-				meta.startGame = false;
-				asts = [];
+				//scene = Scene.gameover;
+				//meta.frameCount = -1;
+				//asts = [];
 				return;
 			}
 		}
 		asts[i].move();
 		window.draw(asts[i].display());
-		ahitbox.size = Vector2f(sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
-		ahitbox.position = Vector2f(asts[i].pos.x, asts[i].pos.y);
-		if(DEBUG)
+		if(DEBUG){
+      ahitbox.size = Vector2f(sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
+  		ahitbox.position = Vector2f(asts[i].pos.x, asts[i].pos.y);
 			window.draw(ahitbox);
+    }
 		foreach(ref bullet; player.bullets){
 			auto b = FloatRect(bullet.pos.x, bullet.pos.y, bullet.size.x, bullet.size.x);
 			if(b.intersects(a)){
@@ -237,25 +217,56 @@ void gameLoop(){
 				break;
 			}
 		}
-		
+
 	}
+
 	window.draw(player.display());
 	foreach(ref bullet; player.bullets){
 		window.draw(bullet.display());
 	}
-	if(uniform(0, 200) <= 30/(10*asts.length)){
-		// Asteroid as = new Asteroid();
-		// auto a = FloatRect(as.pos.x, as.pos.y, sqrt(0.6f*sq(as.radius)), sqrt(0.6f*sq(as.radius)));
-		// auto p = FloatRect(player.pos.x-player.size/2, player.pos.y-player.size/2, player.size, player.size);
-		// while(a.intersects(p)) a.randomPos();
-		asts ~= new Asteroid();
+	if(uniform(0, 200) <= 30/( 10*asts.length )){
+		Asteroid as = new Asteroid();
+		auto a = FloatRect(as.pos.x, as.pos.y, sqrt(0.6f*sq(as.radius)), sqrt(0.6f*sq(as.radius)));
+		auto p = FloatRect(player.pos.x-player.size/2, player.pos.y-player.size/2, player.size, player.size);
+		while(a.intersects(p)) as.randomPos();
+		asts ~= as;
 	}
-	ahitbox.size = Vector2f(player.size, player.size);
-	ahitbox.position = Vector2f(player.pos.x-player.size/2, player.pos.y-player.size/2);
-	if(DEBUG)
-		window.draw(ahitbox);
+
+	if(DEBUG){
+    ahitbox.size = Vector2f(player.size, player.size);
+    ahitbox.position = Vector2f(player.pos.x-player.size/2, player.pos.y-player.size/2);
+    window.draw(ahitbox);
+  }
+
 	text(to!string(score), 48, meta.width*0.1, meta.height*0.1);
 
+  { //Networking
+
+    if(buffer.connected){
+      buffer.startPacket(Buffer.PacketType.Player);
+      buffer.add(to!int(player.pos.x));
+      buffer.flush();
+    }else{
+      buffer.listen();
+    }
+  }
+}
+
+void gameClientLoop(){
+  player.interact();
+  for(long i=0; i < asts.length;i++){
+    window.draw(asts[i].display());
+  }
+  window.draw(player.display());
+  foreach(ref bullet; player.bullets){
+		window.draw(bullet.display());
+	}
+
+  {//Networking
+    if(!buffer.connected)
+      buffer.connect(net.ip, net.port); //Blocks until connection is made
+    buffer.receive();
+  }
 }
 
 void handleEvent(Event event){
@@ -266,28 +277,23 @@ void handleEvent(Event event){
 					window.close();
 					return;
 				}
-				meta.frameCount = -1;
-				meta.startGame = true;
-				gameInit();
+        if(meta.frameCount > 30){
+          if(event.key.code == Keyboard.Key.H){
+      		  scene = Scene.gameHost;
+          }else{
+            scene = Scene.gameClient;
+          }
+  				meta.frameCount = -1;
+  				gameInit();
+        }
 				break;
-			case Scene.game:
-				if(event.key.code == Keyboard.Key.Escape){
-					scene = Scene.pause;
-				}else if(event.key.code == Keyboard.Key.Q){
-					window.close();
-					return;
-				}
-				break;
-			case Scene.pause:
-				if(event.key.code == Keyboard.Key.Escape){
-					scene = Scene.game;
-				}else if(event.key.code == Keyboard.Key.Q){
+			case Scene.gameHost: case Scene.gameClient:
+				if(event.key.code == Keyboard.Key.Q){
 					window.close();
 					return;
 				}
 				break;
 			case Scene.gameover:
-				
 				if(event.key.code == Keyboard.Key.Escape || event.key.code == Keyboard.Key.Q){
 					window.close();
 					return;
@@ -304,7 +310,7 @@ void handleEvent(Event event){
 }
 
 void main(){
-	//menu();
+	//startup();
 	scene = Scene.menu;
 	game.create(window, &setup, &draw, &handleEvent); //Initialises the window, calls setup once and then calls draw
 }
