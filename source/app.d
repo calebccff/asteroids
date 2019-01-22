@@ -271,12 +271,12 @@ void gameHostLoop(){
 		if(a.intersects(p)){
 			if(meta.frameCount < 60){
 				asts = remove(asts, i);
-			}else{
-				scene = Scene.gameover;
-				meta.frameCount = -1;
-        meta.solo = false;
-				asts = [];
-				return;
+			}else{ //I'm literally dead
+				// scene = Scene.gameover;
+				// meta.frameCount = -1;
+        // meta.solo = false;
+				// asts = [];
+				// return;
 			}
 		}
 		asts[i].move();
@@ -333,20 +333,13 @@ void gameClientLoop(){
     return;
   }
 
-	Buffer.PacketType type;
-	int count = -1;
-
 	writeln("#########");
-	while(type != Buffer.PacketType.NoData){
-		count++;
+	for(int c=0;;c++){
 		ubyte[] r = buffer.receive();
-		ubyte t = r[0];
+		ubyte type = r[0];
 		ubyte[] recv = r[1..$];
-		if(recv.length < 4) break; //Empty packet
-		foreach(pt; [EnumMembers!(Buffer.PacketType)]){
-			if(t == pt) type = pt;
-		}	
-		writeln(count, " . ", type, "@", recv[0..4]);
+		if(type == 99 || recv.length < 4) break; //Empty packet
+		writeln(c, " . ", type, "@", recv[0..4]);
 		alias ci = Buffer.conv2int;
 		switch(type){
 			case Buffer.PacketType.Player:
