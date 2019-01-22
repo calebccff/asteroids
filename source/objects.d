@@ -71,8 +71,6 @@ class Player{
         int size = 30;
     }
 
-
-
     this(Keyboard.Key[4] ks){
         this.keys = ks;
         pos = Vector(300, 300);
@@ -88,6 +86,10 @@ class Player{
       pos.x = x;
       pos.y = y;
       this.dir = dir;
+    }
+
+    void newBullet(int x, int y, double dir){
+      bullets ~= Bullet(Vector(x, y), dir);
     }
 
     void interact(){

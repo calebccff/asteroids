@@ -21,7 +21,6 @@ class Buffer{
     }
 
     ~this(){
-
       if(connected){
         other.close();
         net.shutdown(SocketShutdown.BOTH);
@@ -79,7 +78,7 @@ class Buffer{
       buffer ~= (i >> 8 ) & 0xff;
       buffer ~= (i      ) & 0xff;
     }
-    static int conv2int(ubyte[4] x){
+    static int conv2int(ubyte[] x){
       int i = 0;
       i = x[0] << 24 | i;
       i = x[1] << 16 | i;

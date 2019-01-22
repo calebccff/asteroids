@@ -10,12 +10,14 @@ import dsfml.window;
 import std.stdio;
 import std.math;
 import core.thread;
-import std.algorithm : remove;
+import std.algorithm : remove, sort;
+import std.algorithm.iteration;
 import std.random : uniform;
 import std.conv;
 import std.csv;
 import std.typecons; //tuples
 import std.file;
+import std.array;
 //Networking
 import std.socket;
 
@@ -91,18 +93,38 @@ void setup(){
 void gameInit(){
 	player = new Player([Keyboard.Key.W, Keyboard.Key.A, Keyboard.Key.D, Keyboard.Key.Space]);
   asts = [];
-	for(int i = 0; i < 5; i++){
-		asts ~= new Asteroid();
-	}
+  if(net.isHost){
+  	for(int i = 0; i < 5; i++){
+  		asts ~= new Asteroid();
+  	}
+  }
   if(!meta.solo){
     buffer = new Buffer(net.isHost, net.port);
   }
 }
 
+enum TextAlign{
+  center,
+  left
+}
+
 void text(string t, int s, double x, double y){
+  text(t, s, x, y, TextAlign.center);
+}
+
+void text(string t, int s, double x, double y, TextAlign a){
 	Text tex = new Text(t, font, s);
 	FloatRect textRect = tex.getLocalBounds();
-	tex.origin = Vector2f(textRect.width/2, textRect.height/2);
+  switch(a){
+    case TextAlign.center:
+      tex.origin = Vector2f(textRect.width/2, textRect.height/2);
+      break;
+    case TextAlign.left:
+    default:
+      tex.origin = Vector2f(0, textRect.height/2);
+      break;
+  }
+
 	tex.position = Vector2f(x, y);
 	window.draw(tex);
 }
@@ -132,6 +154,7 @@ void menu(){
 	if(frameCount%meta.frameToggle<meta.frameToggle/2){
 		text("INSERT COIN TO START", 32, meta.width/2, meta.height*0.8);
 	}
+  text("PRESS 'H' TO HOST, 'S' FOR SOLO OR ANY KEY FOR CLIENT", 28, meta.width/2, meta.height*0.9);
 
 	if(uniform(0, 100) < 5/(1+asts.length)){
 		asts ~= new Asteroid();
@@ -144,19 +167,27 @@ void menu(){
 
 void gameover(){
 	text("GAMEOVER", 128, meta.width/2, meta.height*0.4);
-	text("SCORE: "~to!string(score), 36, meta.width/2, meta.height*0.55);
+	text("SCORE: "~to!string(score.score), 36, meta.width/2, meta.height*0.55);
 	if(frameCount%meta.frameToggle<meta.frameToggle/2){
 		text("HIGHSCORES ", 42, meta.width/2, meta.height*0.65);
 	}
-	if(meta.frameCount < 1){
-		string s = readText("scores.csv");
-    foreach (record; csvReader!(Tuple!(string, int))(s)){
-      meta.hiscores ~= Score(record[0], record[1]);
+	if(meta.frameCount == 0){
+    {
+  		string s = readText("scores.csv");
+      foreach (record; csvReader!(Tuple!(string, int))(s)){
+        meta.hiscores ~= Score(record[0], record[1]);
+      }
     }
+    meta.hiscores ~= score;
+    sort!((a,b)=>a.score > b.score)(meta.hiscores);
+    std.file.remove("scores.csv");
+    File s = File("scores.csv", "w");
+    s.write(join(map!(s => s.name~","~to!string(s.score))(meta.hiscores), "\n"));
 	}
 	{
 		foreach (i, score; meta.hiscores){
-			text(score.name~": "~to!string(score.score), 36, meta.width/2, meta.height*0.75+meta.height*0.06*i);
+      if(i < 3)
+			   text(score.name~": "~to!string(score.score), 36, meta.width/2, meta.height*0.75+meta.height*0.06*i);
 		}
 	}
 }
@@ -190,8 +221,39 @@ void startup(){
 }*/
 
 void gameHostLoop(){
+  if(!meta.solo){ //Networking
+
+    if(!buffer.connected){
+      window.clear();
+      text("Connecting...", 32, meta.width/2, meta.height*0.7);
+      if(meta.frameCount > 0) buffer.listen();
+      return;
+    }
+
+    buffer.startPacket(Buffer.PacketType.Player); //Player data
+    buffer.add(to!int(player.pos.x));
+    buffer.add(to!int(player.pos.y));
+    buffer.add(to!int(player.dir/PI*1000));
+    buffer.flush();
+
+    buffer.startPacket(Buffer.PacketType.Bullets);
+    foreach(b; player.bullets){
+      buffer.add(to!int(b.pos.x));
+      buffer.add(to!int(b.pos.y));
+      buffer.add(to!int(b.vel.heading()/PI*1000));
+    }
+    buffer.flush();
+
+    buffer.startPacket(Buffer.PacketType.Asteroids);
+    foreach(a; asts){
+      buffer.add(to!int(a.pos.x));
+      buffer.add(to!int(a.pos.y));
+      buffer.add(to!int(a.rot/PI*1000));
+    }
+    buffer.flush();
+  }
+
 	player.interact();
-  writeln("Interacted");
 	for(long i = asts.length-1; i >= 0; i--){
 		auto a = FloatRect(asts[i].pos.x, asts[i].pos.y, sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
 		auto p = FloatRect(player.pos.x-player.size/2, player.pos.y-player.size/2, player.size, player.size);
@@ -199,10 +261,11 @@ void gameHostLoop(){
 			if(meta.frameCount < 60){
 				asts = remove(asts, i);
 			}else{
-				//scene = Scene.gameover;
-				//meta.frameCount = -1;
-				//asts = [];
-				//return;
+				scene = Scene.gameover;
+				meta.frameCount = -1;
+        meta.solo = false;
+				asts = [];
+				return;
 			}
 		}
 		asts[i].move();
@@ -245,39 +308,20 @@ void gameHostLoop(){
     window.draw(ahitbox);
   }
 
-	text(to!string(score), 48, meta.width*0.1, meta.height*0.1);
+	text(to!string(score.score), 48, meta.width*0.1, meta.height*0.1);
 
-  if(!meta.solo){ //Networking
 
-    if(buffer.connected){
-      buffer.startPacket(Buffer.PacketType.Player); //Player data
-      buffer.add(to!int(player.pos.x));
-      buffer.add(to!int(player.pos.y));
-      buffer.add(to!int(player.dir/PI*1000));
-      buffer.flush();
-
-      buffer.startPacket(Buffer.PacketType.Bullets);
-      foreach(b; player.bullets){
-        buffer.add(to!int(b.pos.x));
-        buffer.add(to!int(b.pos.y));
-        buffer.add(to!int(b.vel.heading()/PI*1000));
-      }
-      buffer.flush();
-
-      buffer.startPacket(Buffer.PacketType.Asteroids);
-      foreach(a; asts){
-        buffer.add(to!int(a.pos.x));
-        buffer.add(to!int(a.pos.y));
-        buffer.add(to!int(a.rot/PI*1000));
-      }
-      buffer.flush();
-    }else{
-      buffer.listen();
-    }
-  }
 }
 
 void gameClientLoop(){
+  if(!buffer.connected){
+    window.clear();
+    text("Connecting...", 32, meta.width/2, meta.height*0.7);
+    //Skip first frame to let the screen redraw
+    if(meta.frameCount > 0) buffer.connect(net.ip, net.port); //Blocks until connection is made
+    return;
+  }
+
   player.interact();
   for(long i=0; i < asts.length;i++){
     window.draw(asts[i].display());
@@ -287,30 +331,23 @@ void gameClientLoop(){
 		window.draw(bullet.display());
 	}
 
-  {//Networking
-    if(!buffer.connected){
-      buffer.connect(net.ip, net.port); //Blocks until connection is made
-    }else{
-      ubyte[] recv = buffer.receive();
-      ubyte type = recv[0];
-      recv = recv[1..$];
-      alias ci = Buffer.conv2int;
-      switch(recv[0]){
-        case Buffer.PacketType.Player:
-          enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
-          break;
-        case Buffer.PacketType.Bullets:
-          for(int i = 1; i < recv.length-3; i+=4){
-            ubyte[4] val = recv[i..i+4];
-            int x = buffer.conv2int(val);
-          }
-          break;
-        case Buffer.PacketType.Asteroids:
-          break;
-        default:
-          break;
+  ubyte[] recv = buffer.receive();
+  ubyte type = recv[0];
+  recv = recv[1..$];
+  alias ci = Buffer.conv2int;
+  switch(recv[0]){
+    case Buffer.PacketType.Player:
+      enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
+      break;
+    case Buffer.PacketType.Bullets:
+      for(int i = 0; i < recv.length-4; i+=12){
+        enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
       }
-    }
+      break;
+    case Buffer.PacketType.Asteroids:
+      break;
+    default:
+      break;
   }
 }
 
@@ -318,7 +355,7 @@ void handleEvent(Event event){
 	if(event.type == Event.EventType.KeyPressed){
 		switch(scene){
 			case Scene.menu:
-				if(event.key.code == Keyboard.Key.Escape){
+				if(event.key.code == Keyboard.Key.Escape || event.key.code == Keyboard.Key.Q){
 					window.close();
 					return;
 				}
