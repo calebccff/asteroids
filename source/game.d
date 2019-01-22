@@ -7,7 +7,7 @@ void create(ref RenderWindow window, void function() setup, void function(int fr
   window = new RenderWindow(VideoMode(1280, 720),//VideoMode.getFullscreenModes()[0],
    "FLOAT-asteroids",
     Window.Style.None);
-  window.setFramerateLimit();
+  window.setFramerateLimit(60);
   setup();
   while (window.isOpen())
   {

@@ -100,7 +100,7 @@ void gameInit(){
   }
   if(!meta.solo){
     buffer = new Buffer(net.isHost, net.port);
-  }else if(!meta.isHost){
+  }else if(!net.isHost){
 		enemy = new Player();
 	}
 }
