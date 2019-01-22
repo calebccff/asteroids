@@ -100,7 +100,9 @@ void gameInit(){
   }
   if(!meta.solo){
     buffer = new Buffer(net.isHost, net.port);
-  }
+  }else if(!meta.isHost){
+		enemy = new Player();
+	}
 }
 
 enum TextAlign{
@@ -322,15 +324,6 @@ void gameClientLoop(){
     return;
   }
 
-  player.interact();
-  for(long i=0; i < asts.length;i++){
-    window.draw(asts[i].display());
-  }
-  window.draw(player.display());
-  foreach(ref bullet; player.bullets){
-		window.draw(bullet.display());
-	}
-
   ubyte[] recv = buffer.receive();
   ubyte type = recv[0];
   recv = recv[1..$];
@@ -349,6 +342,19 @@ void gameClientLoop(){
     default:
       break;
   }
+
+	player.interact();
+  for(long i=0; i < asts.length;i++){
+    window.draw(asts[i].display());
+  }
+  window.draw(player.display());
+	window.draw(enemy.display());
+  foreach(ref bullet; player.bullets){
+		window.draw(bullet.display());
+	}
+	foreach(ref bullet; enemy.bullets){
+		window.draw(bullet.display());
+	}
 }
 
 void handleEvent(Event event){
