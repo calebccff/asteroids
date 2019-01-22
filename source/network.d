@@ -17,7 +17,8 @@ class Buffer{
         net = new Socket(AddressFamily.INET, SocketType.STREAM);
         if(host){
           net.blocking = false;
-          net.bind(new InternetAddress("localhost", 3331));
+          net.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, true);
+          net.bind(new InternetAddress(bindport));
           net.listen(1);
         }
     }
@@ -54,6 +55,7 @@ class Buffer{
     void receive(){
       net.receive(recv);
       writeln(recv);
+      recv = [];
     }
 
     void startPacket(PacketType t){

@@ -54,8 +54,8 @@ enum Scene{
 	gameover
 }
 struct Network{
-	string ip = "127.0.0.1";
-  ushort port = 3331;
+	string ip = "192.168.43.123";
+  ushort port = 1234;
 	bool isHost = true;
 }
 struct Meta{
@@ -79,8 +79,6 @@ void setup(){
 
 	font = new Font();
 	font.loadFromFile("fonts/Hyperspace.otf");
-
-	buffer = new Buffer(true, 2525);
 }
 
 void gameInit(){
@@ -89,6 +87,7 @@ void gameInit(){
 	for(int i = 0; i < 5; i++){
 		asts ~= new Asteroid();
 	}
+  buffer = new Buffer(net.isHost, net.port);
 }
 
 void text(string t, int s, double x, double y){
@@ -195,7 +194,7 @@ void gameHostLoop(){
 				//scene = Scene.gameover;
 				//meta.frameCount = -1;
 				//asts = [];
-				return;
+				//return;
 			}
 		}
 		asts[i].move();
@@ -263,9 +262,11 @@ void gameClientLoop(){
 	}
 
   {//Networking
-    if(!buffer.connected)
+    if(!buffer.connected){
       buffer.connect(net.ip, net.port); //Blocks until connection is made
-    buffer.receive();
+    }else{
+      buffer.receive();
+    }
   }
 }
 
@@ -279,8 +280,10 @@ void handleEvent(Event event){
 				}
         if(meta.frameCount > 30){
           if(event.key.code == Keyboard.Key.H){
+            net.isHost = true;
       		  scene = Scene.gameHost;
           }else{
+            net.isHost = false;
             scene = Scene.gameClient;
           }
   				meta.frameCount = -1;
