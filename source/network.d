@@ -1,11 +1,8 @@
 import std.socket;
 import std.stdio;
 
-//import std.parallelism : task, Task, taskPool;
-
 class Buffer{
     ubyte[] buffer;
-    ubyte[1024] recv;
     Socket net;
     Socket other;
 
@@ -16,7 +13,7 @@ class Buffer{
         this.host = host;
         net = new Socket(AddressFamily.INET, SocketType.STREAM);
         if(host){
-          net.blocking = false;
+          //net.blocking = false; //For testing
           net.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, true);
           net.bind(new InternetAddress(bindport));
           net.listen(1);
@@ -24,16 +21,20 @@ class Buffer{
     }
 
     ~this(){
+
+      if(connected){
         other.close();
         net.shutdown(SocketShutdown.BOTH);
         net.close();
+      }
     }
 
     static enum PacketType{
-        Player    =0x10,
-        Objects   =0x20,
-        GameStart =0x30,
-        GameOver  =0x40
+        Player    =10,
+        Bullets   =21,
+        Asteroids =22,
+        GameStart =30,
+        GameOver  =31
     }
 
     void listen(){
@@ -41,29 +42,34 @@ class Buffer{
         try{
             other = net.accept();
             connected = true;
+            net.blocking = false;
         }catch(SocketAcceptException e){
+            writeln(e);
             return; //Return if no client waiting to connect
         }
     }
 
     void connect(string ip, ushort port){
+      try{
       net.connect(new InternetAddress(ip, port));
+      }catch(SocketOSException e){
+        return;
+      }
       connected = true;
       net.blocking = false;
     }
 
-    void receive(){
-      writeln("TEST");
+    ubyte[] receive(){
+      ubyte[1024] recv;
       auto got = net.receive(recv);
-      writeln(got, ": ", recv[0..got]);
-      recv = new ubyte[1024];
+      return recv.dup;
     }
 
     void startPacket(PacketType t){
         buffer ~= t & 0xff;
     }
     void flush(){
-      writeln("Sent: ", buffer);
+      //writeln(":",buffer);
       other.send(buffer);
       buffer = [];
     }
@@ -72,5 +78,13 @@ class Buffer{
       buffer ~= (i >> 16) & 0xff;
       buffer ~= (i >> 8 ) & 0xff;
       buffer ~= (i      ) & 0xff;
+    }
+    static int conv2int(ubyte[4] x){
+      int i = 0;
+      i = x[0] << 24 | i;
+      i = x[1] << 16 | i;
+      i = x[2] << 8  | i;
+      i = x[3] << 0  | i;
+      return i;
     }
 }

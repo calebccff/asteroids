@@ -27,8 +27,6 @@ void objectInit(int w, int h){
 
 class Player{
     private{
-        
-        double dir;
         double dirvel;
         float accelFrames;
         Vector inertia;
@@ -69,16 +67,27 @@ class Player{
     public{
         Bullet[] bullets;
         Vector pos;
+        double dir;
         int size = 30;
     }
 
-    
+
 
     this(Keyboard.Key[4] ks){
         this.keys = ks;
         pos = Vector(300, 300);
         inertia = Vector(0, 0);
         dir = 0;
+    }
+
+    this(){
+      //For enemy player
+    }
+
+    void set(int x, int y, double dir){
+      pos.x = x;
+      pos.y = y;
+      this.dir = dir;
     }
 
     void interact(){
@@ -139,12 +148,12 @@ class Player{
     Shape display(){
         auto shape = new RectangleShape(Vector2f(size*1.5, size));
         shape.setTexture(ship);
-        
+
         shape.fillColor(Color.White);
         shape.rotation(dir*180/PI);
         shape.position = pos.as2f();
         shape.origin = Vector2f(size*1.5/2, size/2);
-                
+
         return shape;
     }
 

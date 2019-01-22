@@ -31,8 +31,9 @@ RenderWindow window;
 
 //Game objects
 Player player;
+Player enemy;
 Asteroid[] asts;
-int score = 0;
+Score score;
 
 //Settings
 const bool DEBUG=false;
@@ -63,8 +64,12 @@ struct Meta{
 	int height;
 	long frameCount;
 	int frameToggle = 30;
-	bool startGame = false;
-	string hiscores;
+	Score[] hiscores;
+  bool solo = false;
+}
+struct Score{
+  string name;
+  int score;
 }
 
 void setup(){
@@ -79,6 +84,8 @@ void setup(){
 
 	font = new Font();
 	font.loadFromFile("fonts/Hyperspace.otf");
+
+  score = Score("sam", 0);
 }
 
 void gameInit(){
@@ -87,7 +94,9 @@ void gameInit(){
 	for(int i = 0; i < 5; i++){
 		asts ~= new Asteroid();
 	}
-  buffer = new Buffer(net.isHost, net.port);
+  if(!meta.solo){
+    buffer = new Buffer(net.isHost, net.port);
+  }
 }
 
 void text(string t, int s, double x, double y){
@@ -140,16 +149,14 @@ void gameover(){
 		text("HIGHSCORES ", 42, meta.width/2, meta.height*0.65);
 	}
 	if(meta.frameCount < 1){
-		meta.hiscores = readText("scores.csv");
+		string s = readText("scores.csv");
+    foreach (record; csvReader!(Tuple!(string, int))(s)){
+      meta.hiscores ~= Score(record[0], record[1]);
+    }
 	}
 	{
-		int hi = 0;
-		int i = 0;
-		foreach (record; csvReader!(Tuple!(string, int))(meta.hiscores))
-		{
-			text(record[0]~": "~to!string(record[1]), 36, meta.width/2, meta.height*0.75+meta.height*0.06*i);
-			if(record[1] > hi) hi = record[1];
-			i++;
+		foreach (i, score; meta.hiscores){
+			text(score.name~": "~to!string(score.score), 36, meta.width/2, meta.height*0.75+meta.height*0.06*i);
 		}
 	}
 }
@@ -184,6 +191,7 @@ void startup(){
 
 void gameHostLoop(){
 	player.interact();
+  writeln("Interacted");
 	for(long i = asts.length-1; i >= 0; i--){
 		auto a = FloatRect(asts[i].pos.x, asts[i].pos.y, sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
 		auto p = FloatRect(player.pos.x-player.size/2, player.pos.y-player.size/2, player.size, player.size);
@@ -208,7 +216,7 @@ void gameHostLoop(){
 			auto b = FloatRect(bullet.pos.x, bullet.pos.y, bullet.size.x, bullet.size.x);
 			if(b.intersects(a)){
 				int sc = 250-50*cast(int)floor(cast(float)bullet.life/50f);
-				score += (sc<0?50:sc);
+				score.score += (sc<0?50:sc);
 				bullet.life = 0;
 				Asteroid[] t = asts[i].hit();
 				asts = remove(asts, i);
@@ -239,12 +247,29 @@ void gameHostLoop(){
 
 	text(to!string(score), 48, meta.width*0.1, meta.height*0.1);
 
-  { //Networking
+  if(!meta.solo){ //Networking
 
     if(buffer.connected){
-      writeln("Sending data");
-      buffer.startPacket(Buffer.PacketType.Player);
+      buffer.startPacket(Buffer.PacketType.Player); //Player data
       buffer.add(to!int(player.pos.x));
+      buffer.add(to!int(player.pos.y));
+      buffer.add(to!int(player.dir/PI*1000));
+      buffer.flush();
+
+      buffer.startPacket(Buffer.PacketType.Bullets);
+      foreach(b; player.bullets){
+        buffer.add(to!int(b.pos.x));
+        buffer.add(to!int(b.pos.y));
+        buffer.add(to!int(b.vel.heading()/PI*1000));
+      }
+      buffer.flush();
+
+      buffer.startPacket(Buffer.PacketType.Asteroids);
+      foreach(a; asts){
+        buffer.add(to!int(a.pos.x));
+        buffer.add(to!int(a.pos.y));
+        buffer.add(to!int(a.rot/PI*1000));
+      }
       buffer.flush();
     }else{
       buffer.listen();
@@ -266,7 +291,25 @@ void gameClientLoop(){
     if(!buffer.connected){
       buffer.connect(net.ip, net.port); //Blocks until connection is made
     }else{
-      buffer.receive();
+      ubyte[] recv = buffer.receive();
+      ubyte type = recv[0];
+      recv = recv[1..$];
+      alias ci = Buffer.conv2int;
+      switch(recv[0]){
+        case Buffer.PacketType.Player:
+          enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
+          break;
+        case Buffer.PacketType.Bullets:
+          for(int i = 1; i < recv.length-3; i+=4){
+            ubyte[4] val = recv[i..i+4];
+            int x = buffer.conv2int(val);
+          }
+          break;
+        case Buffer.PacketType.Asteroids:
+          break;
+        default:
+          break;
+      }
     }
   }
 }
@@ -283,6 +326,9 @@ void handleEvent(Event event){
           if(event.key.code == Keyboard.Key.H){
             net.isHost = true;
       		  scene = Scene.gameHost;
+          }else if(event.key.code == Keyboard.Key.S){
+            meta.solo = true;
+            scene = Scene.gameHost;
           }else{
             net.isHost = false;
             scene = Scene.gameClient;
@@ -303,7 +349,7 @@ void handleEvent(Event event){
 					return;
 				}
 				if(meta.frameCount > 30){
-					score = 0;
+					score.score = 0;
 					scene = Scene.menu;
 				}
 				break;
