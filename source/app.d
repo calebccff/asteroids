@@ -233,15 +233,15 @@ void gameHostLoop(){
       return;
     }
 
-		switch(meta.frameCount%3){
-			case 0:
+		// switch(meta.frameCount%3){
+		// 	case 0:
 				buffer.startPacket(Buffer.PacketType.Player); //Player data
 				buffer.add(to!int(player.pos.x));
 				buffer.add(to!int(player.pos.y));
 				buffer.add(to!int(player.dir/PI*1000));
 				buffer.flush();
-				break;
-			case 1:
+			// 	break;
+			// case 1:
 				buffer.startPacket(Buffer.PacketType.Bullets);
 				foreach(b; player.bullets){
 					buffer.add(to!int(b.pos.x));
@@ -249,8 +249,8 @@ void gameHostLoop(){
 					buffer.add(to!int(b.vel.heading()/PI*1000));
 				}
 				buffer.flush();
-				break;
-			case 2:
+			// 	break;
+			// case 2:
 				buffer.startPacket(Buffer.PacketType.Asteroids);
 				foreach(a; asts){
 					buffer.add(to!int(a.pos.x));
@@ -258,10 +258,10 @@ void gameHostLoop(){
 					buffer.add(to!int(a.rot/PI*1000));
 				}
 				buffer.flush();
-				break;
-				default:
-					break;
-		}
+				// break;
+				// default:
+				// 	break;
+		//}
   }
 
 	player.interact();
@@ -334,17 +334,19 @@ void gameClientLoop(){
   }
 
 	Buffer.PacketType type;
+	int count = -1;
 
 	writeln("#########");
 	while(type != Buffer.PacketType.NoData){
-
+		count++;
 		ubyte[] r = buffer.receive();
 		ubyte t = r[0];
 		ubyte[] recv = r[1..$];
+		if(recv.length < 4) break; //Empty packet
 		foreach(pt; [EnumMembers!(Buffer.PacketType)]){
 			if(t == pt) type = pt;
 		}	
-		writeln(type);
+		writeln(count, " . ", type, "@", recv[0..4]);
 		alias ci = Buffer.conv2int;
 		switch(type){
 			case Buffer.PacketType.Player:
@@ -352,7 +354,7 @@ void gameClientLoop(){
 				break;
 			case Buffer.PacketType.Bullets:
 				enemy.bullets = [];
-				for(int i = 0; i < recv.length-13; i+=12){
+				for(int i = 0; i < recv.length-12; i+=12){
 					enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
 				}
 				break;
