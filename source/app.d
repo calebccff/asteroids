@@ -18,6 +18,7 @@ import std.csv;
 import std.typecons; //tuples
 import std.file;
 import std.array;
+import std.traits; //enum members
 //Networking
 import std.socket;
 
@@ -57,7 +58,7 @@ enum Scene{
 	gameover
 }
 struct Network{
-	string ip = "192.168.43.186";
+	string ip = "192.168.1.204";
   ushort port = 1234;
 	bool isHost = true;
 }
@@ -100,7 +101,7 @@ void gameInit(){
   }
   if(!meta.solo){
     buffer = new Buffer(net.isHost, net.port);
-  }else if(!net.isHost){
+  }if(!net.isHost){
 		enemy = new Player();
 	}
 }
@@ -227,32 +228,40 @@ void gameHostLoop(){
 
     if(!buffer.connected){
       window.clear();
-      text("Connecting...", 32, meta.width/2, meta.height*0.7);
+      text("Waiting for client...", 32, meta.width/2, meta.height*0.7);
       if(meta.frameCount > 0) buffer.listen();
       return;
     }
 
-    buffer.startPacket(Buffer.PacketType.Player); //Player data
-    buffer.add(to!int(player.pos.x));
-    buffer.add(to!int(player.pos.y));
-    buffer.add(to!int(player.dir/PI*1000));
-    buffer.flush();
-
-    buffer.startPacket(Buffer.PacketType.Bullets);
-    foreach(b; player.bullets){
-      buffer.add(to!int(b.pos.x));
-      buffer.add(to!int(b.pos.y));
-      buffer.add(to!int(b.vel.heading()/PI*1000));
-    }
-    buffer.flush();
-
-    buffer.startPacket(Buffer.PacketType.Asteroids);
-    foreach(a; asts){
-      buffer.add(to!int(a.pos.x));
-      buffer.add(to!int(a.pos.y));
-      buffer.add(to!int(a.rot/PI*1000));
-    }
-    buffer.flush();
+		switch(meta.frameCount%3){
+			case 0:
+				buffer.startPacket(Buffer.PacketType.Player); //Player data
+				buffer.add(to!int(player.pos.x));
+				buffer.add(to!int(player.pos.y));
+				buffer.add(to!int(player.dir/PI*1000));
+				buffer.flush();
+				break;
+			case 1:
+				buffer.startPacket(Buffer.PacketType.Bullets);
+				foreach(b; player.bullets){
+					buffer.add(to!int(b.pos.x));
+					buffer.add(to!int(b.pos.y));
+					buffer.add(to!int(b.vel.heading()/PI*1000));
+				}
+				buffer.flush();
+				break;
+			case 2:
+				buffer.startPacket(Buffer.PacketType.Asteroids);
+				foreach(a; asts){
+					buffer.add(to!int(a.pos.x));
+					buffer.add(to!int(a.pos.y));
+					buffer.add(to!int(a.rot/PI*1000));
+				}
+				buffer.flush();
+				break;
+				default:
+					break;
+		}
   }
 
 	player.interact();
@@ -324,24 +333,35 @@ void gameClientLoop(){
     return;
   }
 
-  ubyte[] recv = buffer.receive();
-  ubyte type = recv[0];
-  recv = recv[1..$];
-  alias ci = Buffer.conv2int;
-  switch(recv[0]){
-    case Buffer.PacketType.Player:
-      enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
-      break;
-    case Buffer.PacketType.Bullets:
-      for(int i = 0; i < recv.length-4; i+=12){
-        enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
-      }
-      break;
-    case Buffer.PacketType.Asteroids:
-      break;
-    default:
-      break;
-  }
+	Buffer.PacketType type;
+
+	writeln("#########");
+	while(type != Buffer.PacketType.NoData){
+
+		ubyte[] r = buffer.receive();
+		ubyte t = r[0];
+		ubyte[] recv = r[1..$];
+		foreach(pt; [EnumMembers!(Buffer.PacketType)]){
+			if(t == pt) type = pt;
+		}	
+		writeln(type);
+		alias ci = Buffer.conv2int;
+		switch(type){
+			case Buffer.PacketType.Player:
+				enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
+				break;
+			case Buffer.PacketType.Bullets:
+				enemy.bullets = [];
+				for(int i = 0; i < recv.length-13; i+=12){
+					enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
+				}
+				break;
+			case Buffer.PacketType.Asteroids:
+				break;
+			default:
+				break;
+		}
+	}
 
 	player.interact();
   for(long i=0; i < asts.length;i++){
@@ -349,10 +369,11 @@ void gameClientLoop(){
   }
   window.draw(player.display());
 	window.draw(enemy.display());
-  foreach(ref bullet; player.bullets){
+  
+	foreach(ref bullet; enemy.bullets){
 		window.draw(bullet.display());
 	}
-	foreach(ref bullet; enemy.bullets){
+	foreach(ref bullet; player.bullets){
 		window.draw(bullet.display());
 	}
 }

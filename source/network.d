@@ -33,7 +33,8 @@ class Buffer{
         Bullets   =21,
         Asteroids =22,
         GameStart =30,
-        GameOver  =31
+        GameOver  =31,
+        NoData    =99
     }
 
     void listen(){
@@ -60,8 +61,11 @@ class Buffer{
 
     ubyte[] receive(){
       ubyte[1024] recv;
-      auto got = net.receive(recv);
-      return recv.dup;
+      long got = net.receive(recv);
+      if(got < 1){ //No packet was sent
+          return [99];
+      }
+      return recv[0..got].dup;
     }
 
     void startPacket(PacketType t){
