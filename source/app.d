@@ -54,7 +54,7 @@ enum Scene{
 	gameover
 }
 struct Network{
-	string ip = "192.168.43.123";
+	string ip = "192.168.43.186";
   ushort port = 1234;
 	bool isHost = true;
 }
@@ -242,6 +242,7 @@ void gameHostLoop(){
   { //Networking
 
     if(buffer.connected){
+      writeln("Sending data");
       buffer.startPacket(Buffer.PacketType.Player);
       buffer.add(to!int(player.pos.x));
       buffer.flush();

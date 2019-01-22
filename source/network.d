@@ -5,7 +5,7 @@ import std.stdio;
 
 class Buffer{
     ubyte[] buffer;
-    ubyte[] recv;
+    ubyte[1024] recv;
     Socket net;
     Socket other;
 
@@ -53,22 +53,24 @@ class Buffer{
     }
 
     void receive(){
-      net.receive(recv);
-      writeln(recv);
-      recv = [];
+      writeln("TEST");
+      auto got = net.receive(recv);
+      writeln(got, ": ", recv[0..got]);
+      recv = new ubyte[1024];
     }
 
     void startPacket(PacketType t){
         buffer ~= t & 0xff;
     }
     void flush(){
-        other.send(buffer);
-        buffer = [];
+      writeln("Sent: ", buffer);
+      other.send(buffer);
+      buffer = [];
     }
     void add(int i){
-        buffer ~= (i >> 24) & 0xff;
-        buffer ~= (i >> 16) & 0xff;
-        buffer ~= (i >> 8 ) & 0xff;
-        buffer ~= (i      ) & 0xff;
+      buffer ~= (i >> 24) & 0xff;
+      buffer ~= (i >> 16) & 0xff;
+      buffer ~= (i >> 8 ) & 0xff;
+      buffer ~= (i      ) & 0xff;
     }
 }
