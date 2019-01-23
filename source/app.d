@@ -19,6 +19,7 @@ import std.typecons; //tuples
 import std.file;
 import std.array;
 import std.traits; //enum members
+import std.parallelism : task, taskPool;
 //Networking
 import std.socket;
 
@@ -101,7 +102,6 @@ void gameInit(){
   }
   if(!meta.solo){
     buffer = new Buffer(net.isHost, net.ip, net.port);
-  }if(!net.isHost){
 		enemy = new Player();
 	}
 }
@@ -224,13 +224,12 @@ void startup(){
 }*/
 
 void netRecv(){
-  writeln("#########");
-	for(int c=0;;c++){
+	for(;;){
 		ubyte[] r = buffer.receive();
 		ubyte type = r[0];
 		ubyte[] recv = r[1..$];
-		if(type == 99 || recv.length < 4) break; //Empty packet
-		writeln("RECV: ", c, " . ", type, "@", recv[0..4]);
+		if(type == 99 || recv.length < 4) continue; //Empty packet
+		writeln("RECV: ", type, "@", recv[0..4]);
 		alias ci = Buffer.conv2int;
 		switch(type){
 			case Buffer.PacketType.Player:
@@ -247,31 +246,44 @@ void netRecv(){
 			default:
 				break;
 		}
+    core.thread.Thread.sleep(dur!("msecs")(1000/200));
 	}
 }
 
 void netSend(){
-  buffer.startPacket(Buffer.PacketType.Player); //Player data
-  buffer.add(to!int(player.pos.x));
-  buffer.add(to!int(player.pos.y));
-  buffer.add(to!int(player.dir/PI*1000));
-  buffer.flush(net.ip, net.port);
-
-  buffer.startPacket(Buffer.PacketType.Bullets);
-  foreach(b; player.bullets){
-    buffer.add(to!int(b.pos.x));
-    buffer.add(to!int(b.pos.y));
-    buffer.add(to!int(b.vel.heading()/PI*1000));
+  //
+  // switch(meta.frameCount%3){
+  //   case 0:
+  while(1){
+      buffer.startPacket(Buffer.PacketType.Player); //Player data
+      buffer.add(to!int(player.pos.x));
+      buffer.add(to!int(player.pos.y));
+      buffer.add(to!int(player.dir/PI*1000));
+      buffer.flush(net.ip, net.port);
+    //   break;
+    // case 1:
+      buffer.startPacket(Buffer.PacketType.Bullets);
+      foreach(b; player.bullets){
+        buffer.add(to!int(b.pos.x));
+        buffer.add(to!int(b.pos.y));
+        buffer.add(to!int(b.vel.heading()/PI*1000));
+      }
+      buffer.flush(net.ip, net.port);
+    //   break;
+    // case 2:
+      buffer.startPacket(Buffer.PacketType.Asteroids);
+      foreach(a; asts){
+        buffer.add(to!int(a.pos.x));
+        buffer.add(to!int(a.pos.y));
+        buffer.add(to!int(a.rot/PI*1000));
+      }
+      buffer.flush(net.ip, net.port);
+  //     break;
+  //   default:
+  //     break;
+  // }
+  core.thread.Thread.sleep(dur!("msecs")(1000/60));
   }
-  buffer.flush(net.ip, net.port);
-
-  buffer.startPacket(Buffer.PacketType.Asteroids);
-  foreach(a; asts){
-    buffer.add(to!int(a.pos.x));
-    buffer.add(to!int(a.pos.y));
-    buffer.add(to!int(a.rot/PI*1000));
-  }
-  buffer.flush(net.ip, net.port);
 }
 
 void gameHostLoop(){
@@ -281,8 +293,10 @@ void gameHostLoop(){
       window.clear();
       text("Waiting for client...", 32, meta.width/2, meta.height*0.7);
     }
-    netRecv();
-		netSend();
+    if(frameCount == 0){
+      task!netRecv().executeInNewThread();
+  		task!netSend().executeInNewThread();
+    }
   }
 
 	player.interact();
@@ -321,7 +335,11 @@ void gameHostLoop(){
 		}
 
 	}
+  window.draw(enemy.display());
 
+	foreach(ref bullet; enemy.bullets){
+		window.draw(bullet.display());
+	}
 	window.draw(player.display());
 	foreach(ref bullet; player.bullets){
 		window.draw(bullet.display());
