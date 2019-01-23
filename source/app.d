@@ -58,7 +58,7 @@ enum Scene{
 	gameover
 }
 struct Network{
-	string ip = "192.168.1.204";
+	string ip = "192.168.43.186";
   ushort port = 1234;
 	bool isHost = true;
 }
@@ -239,7 +239,7 @@ void gameHostLoop(){
 				buffer.add(to!int(player.pos.x));
 				buffer.add(to!int(player.pos.y));
 				buffer.add(to!int(player.dir/PI*1000));
-				buffer.flush();
+				buffer.flush(net.ip, net.port);
 			// 	break;
 			// case 1:
 				buffer.startPacket(Buffer.PacketType.Bullets);
@@ -248,7 +248,7 @@ void gameHostLoop(){
 					buffer.add(to!int(b.pos.y));
 					buffer.add(to!int(b.vel.heading()/PI*1000));
 				}
-				buffer.flush();
+				buffer.flush(net.ip, net.port);
 			// 	break;
 			// case 2:
 				buffer.startPacket(Buffer.PacketType.Asteroids);
@@ -257,7 +257,7 @@ void gameHostLoop(){
 					buffer.add(to!int(a.pos.y));
 					buffer.add(to!int(a.rot/PI*1000));
 				}
-				buffer.flush();
+				buffer.flush(net.ip, net.port);
 				// break;
 				// default:
 				// 	break;
@@ -364,7 +364,7 @@ void gameClientLoop(){
   }
   window.draw(player.display());
 	window.draw(enemy.display());
-  
+
 	foreach(ref bullet; enemy.bullets){
 		window.draw(bullet.display());
 	}

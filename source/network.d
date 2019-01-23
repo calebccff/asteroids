@@ -11,12 +11,12 @@ class Buffer{
 
     this(bool host, ushort bindport){
         this.host = host;
-        net = new Socket(AddressFamily.INET, SocketType.STREAM);
+        net = new Socket(AddressFamily.INET, SocketType.DGRAM);
         if(host){
           //net.blocking = false; //For testing
           net.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, true);
           net.bind(new InternetAddress(bindport));
-          net.listen(1);
+          //net.listen(1);
         }
     }
 
@@ -40,7 +40,7 @@ class Buffer{
     void listen(){
         long bytesRead;
         try{
-            other = net.accept();
+            //other = net.accept();
             connected = true;
             net.blocking = false;
         }catch(SocketAcceptException e){
@@ -71,9 +71,10 @@ class Buffer{
     void startPacket(PacketType t){
         buffer ~= t & 0xff;
     }
-    void flush(){
+    void flush(string ip, ushort port){
       //writeln(":",buffer);
-      other.send(buffer);
+      //other.send(buffer);
+      net.sendTo(buffer, new InternetAddress(ip, port));
       buffer = [];
     }
     void add(int i){
