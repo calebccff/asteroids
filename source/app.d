@@ -230,7 +230,7 @@ void netRecv(){
 		ubyte type = r[0];
 		ubyte[] recv = r[1..$];
 		if(type == 99 || recv.length < 4) break; //Empty packet
-		writeln(c, " . ", type, "@", recv[0..4]);
+		writeln("RECV: ", c, " . ", type, "@", recv[0..4]);
 		alias ci = Buffer.conv2int;
 		switch(type){
 			case Buffer.PacketType.Player:
@@ -280,9 +280,8 @@ void gameHostLoop(){
     if(!buffer.connected){
       window.clear();
       text("Waiting for client...", 32, meta.width/2, meta.height*0.7);
-      if(meta.frameCount > 0) netRecv();
     }
-
+    netRecv();
 		netSend();
   }
 
@@ -351,10 +350,8 @@ void gameClientLoop(){
     window.clear();
     text("Connecting...", 32, meta.width/2, meta.height*0.7);
     //Skip first frame to let the screen redraw
-    if(meta.frameCount > 0) netRecv();
-    return;
   }
-
+  netRecv();
   netSend();
 
 	player.interact();

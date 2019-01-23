@@ -72,7 +72,7 @@ class Buffer{
         buffer ~= t & 0xff;
     }
     void flush(string ip, ushort port){
-      writeln(":",buffer);
+      writeln("SEND:",buffer);
       //other.send(buffer);
       net.sendTo(buffer, new InternetAddress(ip, port));
       buffer = [];
