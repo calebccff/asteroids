@@ -10,14 +10,13 @@ class Buffer{
     bool connected;
 
     this(bool host, string oip, ushort bindport){
-        this.host = host;
-        net = new Socket(AddressFamily.INET, SocketType.DGRAM);
-        net.blocking = false;
-        net.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, true);
-        net.bind(new InternetAddress(bindport));
+      this.host = host;
+      net = new Socket(AddressFamily.INET, SocketType.DGRAM);
+      net.blocking = false;
+      net.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, true);
+      net.bind(new InternetAddress(bindport));
 
-        other = new InternetAddress(oip, bindport);
-        }
+      other = new InternetAddress(oip, bindport);
     }
 
     ~this(){

@@ -58,7 +58,7 @@ enum Scene{
 	gameover
 }
 struct Network{
-	string ip = "192.168.43.186";
+	string ip = "10.56.98.97";
   ushort port = 1234;
 	bool isHost = true;
 }
@@ -223,7 +223,7 @@ void startup(){
 	}
 }*/
 
-void netUpdate(){
+void netRecv(){
   writeln("#########");
 	for(int c=0;;c++){
 		ubyte[] r = buffer.receive();
@@ -250,45 +250,40 @@ void netUpdate(){
 	}
 }
 
+void netSend(){
+  buffer.startPacket(Buffer.PacketType.Player); //Player data
+  buffer.add(to!int(player.pos.x));
+  buffer.add(to!int(player.pos.y));
+  buffer.add(to!int(player.dir/PI*1000));
+  buffer.flush(net.ip, net.port);
+
+  buffer.startPacket(Buffer.PacketType.Bullets);
+  foreach(b; player.bullets){
+    buffer.add(to!int(b.pos.x));
+    buffer.add(to!int(b.pos.y));
+    buffer.add(to!int(b.vel.heading()/PI*1000));
+  }
+  buffer.flush(net.ip, net.port);
+
+  buffer.startPacket(Buffer.PacketType.Asteroids);
+  foreach(a; asts){
+    buffer.add(to!int(a.pos.x));
+    buffer.add(to!int(a.pos.y));
+    buffer.add(to!int(a.rot/PI*1000));
+  }
+  buffer.flush(net.ip, net.port);
+}
+
 void gameHostLoop(){
   if(!meta.solo){ //Networking
 
     if(!buffer.connected){
       window.clear();
       text("Waiting for client...", 32, meta.width/2, meta.height*0.7);
-      if(meta.frameCount > 0) netUpdate();
-      return;
+      if(meta.frameCount > 0) netRecv();
     }
 
-		// switch(meta.frameCount%3){
-		// 	case 0:
-				buffer.startPacket(Buffer.PacketType.Player); //Player data
-				buffer.add(to!int(player.pos.x));
-				buffer.add(to!int(player.pos.y));
-				buffer.add(to!int(player.dir/PI*1000));
-				buffer.flush(net.ip, net.port);
-			// 	break;
-			// case 1:
-				buffer.startPacket(Buffer.PacketType.Bullets);
-				foreach(b; player.bullets){
-					buffer.add(to!int(b.pos.x));
-					buffer.add(to!int(b.pos.y));
-					buffer.add(to!int(b.vel.heading()/PI*1000));
-				}
-				buffer.flush(net.ip, net.port);
-			// 	break;
-			// case 2:
-				buffer.startPacket(Buffer.PacketType.Asteroids);
-				foreach(a; asts){
-					buffer.add(to!int(a.pos.x));
-					buffer.add(to!int(a.pos.y));
-					buffer.add(to!int(a.rot/PI*1000));
-				}
-				buffer.flush(net.ip, net.port);
-				// break;
-				// default:
-				// 	break;
-		//}
+		netSend();
   }
 
 	player.interact();
@@ -356,9 +351,11 @@ void gameClientLoop(){
     window.clear();
     text("Connecting...", 32, meta.width/2, meta.height*0.7);
     //Skip first frame to let the screen redraw
-    if(meta.frameCount > 0) netUpdate();
+    if(meta.frameCount > 0) netRecv();
     return;
   }
+
+  netSend();
 
 	player.interact();
   for(long i=0; i < asts.length;i++){
