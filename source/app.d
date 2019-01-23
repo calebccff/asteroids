@@ -100,7 +100,7 @@ void gameInit(){
   	}
   }
   if(!meta.solo){
-    buffer = new Buffer(net.isHost, net.port);
+    buffer = new Buffer(net.isHost, net.ip, net.port);
   }if(!net.isHost){
 		enemy = new Player();
 	}
@@ -223,13 +223,40 @@ void startup(){
 	}
 }*/
 
+void netUpdate(){
+  writeln("#########");
+	for(int c=0;;c++){
+		ubyte[] r = buffer.receive();
+		ubyte type = r[0];
+		ubyte[] recv = r[1..$];
+		if(type == 99 || recv.length < 4) break; //Empty packet
+		writeln(c, " . ", type, "@", recv[0..4]);
+		alias ci = Buffer.conv2int;
+		switch(type){
+			case Buffer.PacketType.Player:
+				enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
+				break;
+			case Buffer.PacketType.Bullets:
+				enemy.bullets = [];
+				for(int i = 0; i < recv.length-12; i+=12){
+					enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
+				}
+				break;
+			case Buffer.PacketType.Asteroids:
+				break;
+			default:
+				break;
+		}
+	}
+}
+
 void gameHostLoop(){
   if(!meta.solo){ //Networking
 
     if(!buffer.connected){
       window.clear();
       text("Waiting for client...", 32, meta.width/2, meta.height*0.7);
-      if(meta.frameCount > 0) buffer.listen();
+      if(meta.frameCount > 0) netUpdate();
       return;
     }
 
@@ -329,34 +356,9 @@ void gameClientLoop(){
     window.clear();
     text("Connecting...", 32, meta.width/2, meta.height*0.7);
     //Skip first frame to let the screen redraw
-    if(meta.frameCount > 0) buffer.connect(net.ip, net.port); //Blocks until connection is made
+    if(meta.frameCount > 0) netUpdate();
     return;
   }
-
-	writeln("#########");
-	for(int c=0;;c++){
-		ubyte[] r = buffer.receive();
-		ubyte type = r[0];
-		ubyte[] recv = r[1..$];
-		if(type == 99 || recv.length < 4) break; //Empty packet
-		writeln(c, " . ", type, "@", recv[0..4]);
-		alias ci = Buffer.conv2int;
-		switch(type){
-			case Buffer.PacketType.Player:
-				enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
-				break;
-			case Buffer.PacketType.Bullets:
-				enemy.bullets = [];
-				for(int i = 0; i < recv.length-12; i+=12){
-					enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
-				}
-				break;
-			case Buffer.PacketType.Asteroids:
-				break;
-			default:
-				break;
-		}
-	}
 
 	player.interact();
   for(long i=0; i < asts.length;i++){

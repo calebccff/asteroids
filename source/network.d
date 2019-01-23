@@ -4,25 +4,25 @@ import std.stdio;
 class Buffer{
     ubyte[] buffer;
     Socket net;
-    Socket other;
+    Address other;
 
     bool host;
     bool connected;
 
-    this(bool host, ushort bindport){
+    this(bool host, string oip, ushort bindport){
         this.host = host;
         net = new Socket(AddressFamily.INET, SocketType.DGRAM);
-        if(host){
-          //net.blocking = false; //For testing
-          net.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, true);
-          net.bind(new InternetAddress(bindport));
-          //net.listen(1);
+        net.blocking = false;
+        net.setOption(SocketOptionLevel.SOCKET, SocketOption.REUSEADDR, true);
+        net.bind(new InternetAddress(bindport));
+
+        other = new InternetAddress(oip, bindport);
         }
     }
 
     ~this(){
       if(connected){
-        other.close();
+        //other.close();
         net.shutdown(SocketShutdown.BOTH);
         net.close();
       }
@@ -38,33 +38,34 @@ class Buffer{
     }
 
     void listen(){
-        long bytesRead;
-        try{
-            //other = net.accept();
-            connected = true;
-            net.blocking = false;
-        }catch(SocketAcceptException e){
-            writeln(e);
-            return; //Return if no client waiting to connect
-        }
+        // long bytesRead;
+        // try{
+        //     //other = net.accept();
+        //     connected = true;
+        //     net.blocking = false;
+        // }catch(SocketAcceptException e){
+        //     writeln(e);
+        //     return; //Return if no client waiting to connect
+        // }
     }
 
     void connect(string ip, ushort port){
-      try{
-      net.connect(new InternetAddress(ip, port));
-      }catch(SocketOSException e){
-        return;
-      }
-      connected = true;
-      net.blocking = false;
+      // try{
+      // net.connect(new InternetAddress(ip, port));
+      // }catch(SocketOSException e){
+      //   return;
+      // }
+      // connected = true;
+      // net.blocking = false;
     }
 
     ubyte[] receive(){
       ubyte[1024] recv;
-      long got = net.receive(recv);
+      long got = net.receiveFrom(recv, SocketFlags.NONE, other);
       if(got < 1){ //No packet was sent
           return [99];
       }
+      connected = true;
       return recv[0..got].dup;
     }
 
@@ -72,7 +73,7 @@ class Buffer{
         buffer ~= t & 0xff;
     }
     void flush(string ip, ushort port){
-      //writeln(":",buffer);
+      writeln(":",buffer);
       //other.send(buffer);
       net.sendTo(buffer, new InternetAddress(ip, port));
       buffer = [];
