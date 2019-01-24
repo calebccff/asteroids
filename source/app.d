@@ -235,7 +235,7 @@ void netRecv(){
       if(type == 99 || r.length < 4) {c=-2;break;} //No data
       ubyte[] bsl = r[i+1..i+PACKET_LENGTH]; //Slice off first byte
 
-      writeln("RECV: ", type, "@", bsl);
+      //writeln("RECV: ", type, "@", bsl);
       alias ci = Buffer.conv2int;
   		switch(type){
   			case Buffer.PacketType.Player: //Last 4 bytes not used
@@ -264,9 +264,9 @@ void netRecv(){
   if(!resetBullets){
     enemy.bullets = [];
   }
-  if(!resetAsts && !net.isHost){
-    asts = [];
-  }
+  // if(!resetAsts && !net.isHost){
+  //   asts = [];
+  // }
 }
 
 void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
@@ -277,6 +277,11 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
     buffer.add(0);
     //buffer.flush(net.ip, net.port);
 
+    buffer.startPacket(Buffer.PacketType.Bullets);
+    buffer.add(-1000);
+    buffer.add(-1000);
+    buffer.add(0);
+    buffer.add(0);
     foreach(b; player.bullets){
       buffer.startPacket(Buffer.PacketType.Bullets);
       buffer.add(to!int(b.pos.x));
@@ -286,6 +291,11 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
     }
     //buffer.flush(net.ip, net.port);
     if(net.isHost){
+      buffer.startPacket(Buffer.PacketType.Asteroids);
+      buffer.add(-1000);
+      buffer.add(-1000);
+      buffer.add(0);
+      buffer.add(0);
       foreach(a; asts){
         buffer.startPacket(Buffer.PacketType.Asteroids);
         buffer.add(to!int(a.pos.x));
@@ -380,7 +390,7 @@ void gameClientLoop(){
   }
   netRecv();
   netSend();
-
+  writeln(asts.length);
 	player.interact();
   for(long i=0; i < asts.length;i++){
     window.draw(asts[i].display());
