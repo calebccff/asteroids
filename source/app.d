@@ -225,10 +225,10 @@ void startup(){
 }*/
 
 void netRecv(){
+  bool resetBullets = false;
   for(int c=0;;c++){
     if(c==-1) break;
     ubyte[] r = buffer.receive();
-    enemy.bullets = [];
     for(int i = 0; i < r.length; i+=PACKET_LENGTH){ //5*4
       ubyte type = r[i];
       if(type == 99 || r.length < 4) {c=-2;break;} //No data
@@ -241,7 +241,11 @@ void netRecv(){
   				enemy.set(ci(bsl[0..4]), ci(bsl[4..8]), ci(bsl[8..12])/1000f*PI);
   				break;
   			case Buffer.PacketType.Bullets:
-  				enemy.newBullet(ci(bsl[i..i+4]), ci(bsl[i+4..i+8]), ci(bsl[i+8..i+12]));
+          if(!resetBullets){
+            resetBullets = true;
+            enemy.bullets = [];
+          }
+  				enemy.newBullet(ci(bsl[0..4]), ci(bsl[4..8]), ci(bsl[8..12]));
   				break;
   			case Buffer.PacketType.Asteroids:
   				break;
@@ -250,32 +254,9 @@ void netRecv(){
   		}
     }
   }
-
-
-	// for(int c=0;;c++){
-	// 	ubyte[] r = buffer.receive();
-	// 	ubyte type = r[0];
-	// 	ubyte[] recv = r[1..$];
-	// 	if(type == 99 || recv.length < 4) continue; //Empty packet
-	// 	writeln("RECV: ", type, "@", recv[0..4]);
-	// 	alias ci = Buffer.conv2int;
-	// 	switch(type){
-	// 		case Buffer.PacketType.Player:
-	// 			enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
-	// 			break;
-	// 		case Buffer.PacketType.Bullets:
-	// 			enemy.bullets = [];
-	// 			for(int i = 0; i < recv.length-12; i+=12){
-	// 				enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
-	// 			}
-	// 			break;
-	// 		case Buffer.PacketType.Asteroids:
-	// 			break;
-	// 		default:
-	// 			break;
-	// 	}
-  //   //sleep(milliseconds(5));
-	// }
+  if(!resetBullets){
+    enemy.bullets = [];
+  }
 }
 
 void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
