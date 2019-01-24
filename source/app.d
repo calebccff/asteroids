@@ -227,12 +227,12 @@ void startup(){
 void netRecv(){
   bool resetBullets = false;
   bool resetAsts = false;
-  for(int c=0;;c++){
-    if(c==-1) break;
+  // for(int c=0;;c++){
+  //   if(c==-1) break;
     ubyte[] r = buffer.receive();
     for(int i = 0; i < r.length; i+=PACKET_LENGTH){ //5*4
       ubyte type = r[i];
-      if(type == 99 || r.length < 4) {c=-2;break;} //No data
+      if(type == 99 || r.length < 4) {break;} //No data
       ubyte[] bsl = r[i+1..i+PACKET_LENGTH]; //Slice off first byte
 
       //writeln("RECV: ", type, "@", bsl);
@@ -260,7 +260,7 @@ void netRecv(){
   				break;
   		}
     }
-  }
+  //}
   if(!resetBullets){
     enemy.bullets = [];
   }
@@ -324,41 +324,43 @@ void gameHostLoop(){
   }
 
 	player.interact();
-	for(long i = asts.length-1; i >= 0; i--){
-		auto a = FloatRect(asts[i].pos.x, asts[i].pos.y, sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
-		auto p = FloatRect(player.pos.x-player.size/2, player.pos.y-player.size/2, player.size, player.size);
-		if(a.intersects(p)){
-			if(meta.frameCount < 60){
-				asts = remove(asts, i);
-			}else{ //I'm literally dead
-				// scene = Scene.gameover;
-				// meta.frameCount = -1;
-        // meta.solo = false;
-				// asts = [];
-				// return;
-			}
-		}
-		asts[i].move();
-		window.draw(asts[i].display());
-		if(DEBUG){
-      ahitbox.size = Vector2f(sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
-  		ahitbox.position = Vector2f(asts[i].pos.x, asts[i].pos.y);
-			window.draw(ahitbox);
-    }
-		foreach(ref bullet; player.bullets){
-			auto b = FloatRect(bullet.pos.x, bullet.pos.y, bullet.size.x, bullet.size.x);
-			if(b.intersects(a)){
-				int sc = 250-50*cast(int)floor(cast(float)bullet.life/50f);
-				score.score += (sc<0?50:sc);
-				bullet.life = 0;
-				Asteroid[] t = asts[i].hit();
-				asts = remove(asts, i);
-				asts ~= t;
-				break;
-			}
-		}
+  foreach(pl; [player, enemy]){
+  	for(long i = asts.length-1; i >= 0; i--){
+  		auto a = FloatRect(asts[i].pos.x, asts[i].pos.y, sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
+  		auto p = FloatRect(player.pos.x-player.size/2, player.pos.y-player.size/2, player.size, player.size);
+  		if(a.intersects(p)){
+  			if(meta.frameCount < 60){
+  				asts = remove(asts, i);
+  			}else{ //I'm literally dead
+  				// scene = Scene.gameover;
+  				// meta.frameCount = -1;
+          // meta.solo = false;
+  				// asts = [];
+  				// return;
+  			}
+  		}
+  		asts[i].move();
+  		window.draw(asts[i].display());
+  		if(DEBUG){
+        ahitbox.size = Vector2f(sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
+    		ahitbox.position = Vector2f(asts[i].pos.x, asts[i].pos.y);
+  			window.draw(ahitbox);
+      }
+  		foreach(ref bullet; player.bullets){
+  			auto b = FloatRect(bullet.pos.x, bullet.pos.y, bullet.size.x, bullet.size.x);
+  			if(b.intersects(a)){
+  				int sc = 250-50*cast(int)floor(cast(float)bullet.life/50f);
+  				score.score += (sc<0?50:sc);
+  				bullet.life = 0;
+  				Asteroid[] t = asts[i].hit();
+  				asts = remove(asts, i);
+  				asts ~= t;
+  				break;
+  			}
+  		}
 
-	}
+  	}
+  }
 	window.draw(player.display());
 	foreach(ref bullet; player.bullets){
 		window.draw(bullet.display());
