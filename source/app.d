@@ -226,12 +226,14 @@ void startup(){
 
 void netRecv(){
   for(int c=0;;c++){
+    if(c==-1) break;
     ubyte[] r = buffer.receive();
     enemy.bullets = [];
     for(int i = 0; i < r.length; i+=PACKET_LENGTH){ //5*4
+      ubyte type = r[i];
+      if(type == 99 || r.length < 4) {c=-2;break;} //No data
       ubyte[] bsl = r[i+1..i+PACKET_LENGTH]; //Slice off first byte
-  		ubyte type = r[i];
-      if(type == 99 || r.length < 4) break; //No data
+
       writeln("RECV: ", type, "@", bsl);
       alias ci = Buffer.conv2int;
   		switch(type){
