@@ -60,7 +60,7 @@ enum Scene{
 	gameover
 }
 struct Network{
-	string ip = "10.56.98.97";
+	string ip = "192.168.43.186";
   ushort port = 1234;
 	bool isHost = true;
 }
@@ -102,6 +102,9 @@ void gameInit(){
 
 	}
   enemy = new Player();
+	player.score.score = 0;
+	enemy.score.score = 0;
+	meta.frameCount = -1;
 }
 
 enum TextAlign{
@@ -132,7 +135,7 @@ void text(string t, int s, double x, double y, TextAlign a){
 
 void draw(int fc){
 	meta.frameCount++;
-	if(scene != Scene.menu){
+	if(scene != Scene.menu && !meta.solo){
 		netRecv();
   	netSend();
 	}
@@ -177,8 +180,8 @@ void gameover(){
 		string s = meta.name~(meta.frameCount%40<20?"":"|");
 		text(s, 128, meta.width/2, meta.height*0.3);
 	}
-	text(player.score.name~to!string(player.score.score), 36, meta.width/2, meta.height*0.55);
-	text(enemy.score.name~to!string(enemy.score.score), 36, meta.width/2, meta.height*0.6);
+	text(player.score.name~": "~to!string(player.score.score), 36, meta.width/2, meta.height*0.55);
+	if(!meta.solo) text(enemy.score.name~": "~to!string(enemy.score.score), 36, meta.width/2, meta.height*0.6);
 	if(frameCount%meta.frameToggle<meta.frameToggle/2){
 		text("HIGHSCORES ", 42, meta.width/2, meta.height*0.65);
 	}
@@ -268,9 +271,6 @@ void netRecv(){
   if(!resetBullets){
     enemy.bullets = [];
   }
-  // if(!resetAsts && !net.isHost){
-  //   asts = [];
-  // }
 }
 
 void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
@@ -357,10 +357,9 @@ void gameHostLoop(){
   		if(a.intersects(p)){
   			if(meta.frameCount < 60){
   				asts = remove(asts, i);
-  			}else{ //I'm literally dead
+  			}else if(buffer.connected){ //I'm literally dead
   				scene = Scene.gameover;
   				meta.frameCount = -1;
-          meta.solo = false;
   				asts = [];
   				return;
   			}
@@ -374,7 +373,7 @@ void gameHostLoop(){
       }
   		foreach(ref bullet; pl.bullets){
   			auto b = FloatRect(bullet.pos.x, bullet.pos.y, bullet.size.x, bullet.size.x);
-  			if(b.intersects(a)){
+  			if(b.intersects(a) && buffer.connected){
   				int sc = 250-50*cast(int)floor(cast(float)bullet.life/50f);
   				pl.score.score += (sc<0?50:sc);
   				bullet.life = 0;
@@ -458,7 +457,6 @@ void handleEvent(Event event){
             net.isHost = false;
             scene = Scene.gameClient;
           }
-  				meta.frameCount = -1;
   				gameInit();
         }
 				break;
@@ -474,9 +472,9 @@ void handleEvent(Event event){
 						window.close();
 						return;
 					} else if(meta.frameCount > 30){
-						player.score.score = 0;
 						meta.name = "";
 						meta.nameConfirm = false;
+						meta.solo = false;
 						scene = Scene.menu;
 					}
 				} else {
