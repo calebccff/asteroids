@@ -188,6 +188,12 @@ class Asteroid{
         rot = uniform(0, 360);
     }
 
+    this(int x, int y, float rot, int rad){
+      pos = Vector(x, y);
+      this.rot = rot;
+      radius = rad;
+    }
+
     void move(){
         pos.add(vel);
         pos.x = (pos.x+sWidth)%sWidth;

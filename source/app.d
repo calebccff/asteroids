@@ -226,6 +226,7 @@ void startup(){
 
 void netRecv(){
   bool resetBullets = false;
+  bool resetAsts = false;
   for(int c=0;;c++){
     if(c==-1) break;
     ubyte[] r = buffer.receive();
@@ -248,6 +249,11 @@ void netRecv(){
   				enemy.newBullet(ci(bsl[0..4]), ci(bsl[4..8]), ci(bsl[8..12]));
   				break;
   			case Buffer.PacketType.Asteroids:
+          if(!resetAsts){
+            resetAsts = true;
+            asts = [];
+          }
+          asts ~= new Asteroid(ci(bsl[0..4]), ci(bsl[4..8]), ci(bsl[8..12]), ci(bsl[12..16]));
   				break;
   			default:
   				break;
@@ -257,6 +263,9 @@ void netRecv(){
   if(!resetBullets){
     enemy.bullets = [];
   }
+  if(!resetAsts){
+    asts = [];
+  }
 }
 
 void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
@@ -264,6 +273,7 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
     buffer.add(to!int(player.pos.x));
     buffer.add(to!int(player.pos.y));
     buffer.add(to!int(player.dir/PI*1000));
+    buffer.add(0);
     //buffer.flush(net.ip, net.port);
 
     foreach(b; player.bullets){
@@ -271,6 +281,7 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
       buffer.add(to!int(b.pos.x));
       buffer.add(to!int(b.pos.y));
       buffer.add(to!int(b.vel.heading()/PI*1000));
+      buffer.add(0);
     }
     //buffer.flush(net.ip, net.port);
 
@@ -279,6 +290,7 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
       buffer.add(to!int(a.pos.x));
       buffer.add(to!int(a.pos.y));
       buffer.add(to!int(a.rot/PI*1000));
+      buffer.add(to!int(a.radius));
     }
     buffer.flush(net.ip, net.port);
 }
