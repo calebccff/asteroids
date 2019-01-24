@@ -41,7 +41,7 @@ Score score;
 
 //Settings
 const bool DEBUG=false;
-const ushort PACKET_LENGTH=17;
+const ushort PACKET_LENGTH=13;
 RectangleShape ahitbox;
 
 //Meta
@@ -250,30 +250,30 @@ void netRecv(){
   }
 
 
-	for(int c=0;;c++){
-		ubyte[] r = buffer.receive();
-		ubyte type = r[0];
-		ubyte[] recv = r[1..$];
-		if(type == 99 || recv.length < 4) continue; //Empty packet
-		writeln("RECV: ", type, "@", recv[0..4]);
-		alias ci = Buffer.conv2int;
-		switch(type){
-			case Buffer.PacketType.Player:
-				enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
-				break;
-			case Buffer.PacketType.Bullets:
-				enemy.bullets = [];
-				for(int i = 0; i < recv.length-12; i+=12){
-					enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
-				}
-				break;
-			case Buffer.PacketType.Asteroids:
-				break;
-			default:
-				break;
-		}
-    //sleep(milliseconds(5));
-	}
+	// for(int c=0;;c++){
+	// 	ubyte[] r = buffer.receive();
+	// 	ubyte type = r[0];
+	// 	ubyte[] recv = r[1..$];
+	// 	if(type == 99 || recv.length < 4) continue; //Empty packet
+	// 	writeln("RECV: ", type, "@", recv[0..4]);
+	// 	alias ci = Buffer.conv2int;
+	// 	switch(type){
+	// 		case Buffer.PacketType.Player:
+	// 			enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
+	// 			break;
+	// 		case Buffer.PacketType.Bullets:
+	// 			enemy.bullets = [];
+	// 			for(int i = 0; i < recv.length-12; i+=12){
+	// 				enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
+	// 			}
+	// 			break;
+	// 		case Buffer.PacketType.Asteroids:
+	// 			break;
+	// 		default:
+	// 			break;
+	// 	}
+  //   //sleep(milliseconds(5));
+	// }
 }
 
 void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
@@ -281,24 +281,21 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
     buffer.add(to!int(player.pos.x));
     buffer.add(to!int(player.pos.y));
     buffer.add(to!int(player.dir/PI*1000));
-    buffer.add(0); //Padding
     //buffer.flush(net.ip, net.port);
 
-    buffer.startPacket(Buffer.PacketType.Bullets);
     foreach(b; player.bullets){
+      buffer.startPacket(Buffer.PacketType.Bullets);
       buffer.add(to!int(b.pos.x));
       buffer.add(to!int(b.pos.y));
       buffer.add(to!int(b.vel.heading()/PI*1000));
-      buffer.add(0); //Padding
     }
     //buffer.flush(net.ip, net.port);
 
-    buffer.startPacket(Buffer.PacketType.Asteroids);
     foreach(a; asts){
+      buffer.startPacket(Buffer.PacketType.Asteroids);
       buffer.add(to!int(a.pos.x));
       buffer.add(to!int(a.pos.y));
       buffer.add(to!int(a.rot/PI*1000));
-      buffer.add(0); //Padding
     }
     buffer.flush(net.ip, net.port);
 }
