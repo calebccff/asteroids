@@ -20,6 +20,7 @@ import std.file;
 import std.array;
 import std.traits; //enum members
 import std.parallelism : task, taskPool;
+import std.string;
 //Networking
 import std.socket;
 
@@ -70,6 +71,8 @@ struct Meta{
 	int frameToggle = 30;
 	Score[] hiscores;
   bool solo = false;
+	string name = "";
+	bool nameConfirm = false;
 }
 
 void setup(){
@@ -164,7 +167,7 @@ void menu(){
 }
 
 void gameover(){
-	text("GAMEOVER", 128, meta.width/2, meta.height*0.4);
+	text("GAMEOVER\n"~(meta.nameConfirm?"":"|")~meta.name~(meta.name.length==4?"":"_")~(meta.nameConfirm?"":"|"), 128, meta.width/2, meta.height*0.4);
 	text("SCORE: "~to!string(player.score.score), 36, meta.width/2, meta.height*0.55);
 	if(frameCount%meta.frameToggle<meta.frameToggle/2){
 		text("HIGHSCORES ", 42, meta.width/2, meta.height*0.65);
@@ -311,8 +314,8 @@ void gameHostLoop(){
       window.clear();
       text("Waiting for client...", 32, meta.width/2, meta.height*0.7);
     }
-    netRecv();
-    netSend();
+    //netRecv();
+    //netSend();
     window.draw(enemy.display());
 
   	foreach(ref bullet; enemy.bullets){
@@ -407,7 +410,13 @@ void gameClientLoop(){
 }
 
 void handleEvent(Event event){
-	if(event.type == Event.EventType.KeyPressed){
+	if (event.type == Event.EventType.TextEntered){
+		if (scene == Scene.gameover) {
+			if (meta.name.length < 4 && event.text.unicode > 32) {
+				meta.name ~= event.text.unicode;
+			}
+		}
+	} else if(event.type == Event.EventType.KeyPressed){
 		switch(scene){
 			case Scene.menu:
 				if(event.key.code == Keyboard.Key.Escape || event.key.code == Keyboard.Key.Q){
@@ -436,13 +445,26 @@ void handleEvent(Event event){
 				}
 				break;
 			case Scene.gameover:
-				if(event.key.code == Keyboard.Key.Escape || event.key.code == Keyboard.Key.Q){
-					window.close();
-					return;
-				}
-				if(meta.frameCount > 30){
-					player.score.score = 0;
-					scene = Scene.menu;
+				if (meta.nameConfirm) {
+					if(event.key.code == Keyboard.Key.Escape || event.key.code == Keyboard.Key.Q){
+						window.close();
+						return;
+					} else if(meta.frameCount > 30){
+						player.score.score = 0;
+						meta.name = "";
+						meta.nameConfirm = false;
+						scene = Scene.menu;
+					}
+				} else {
+					 if (event.key.code == Keyboard.Key.Return) {
+						 if (meta.name.length > 0) {
+						 	meta.nameConfirm = true;
+						}
+					 } else if (event.key.code == Keyboard.Key.BackSpace) {
+ 						if (meta.name.length > 0) {
+							meta.name = meta.name[0..$-1].dup;
+						}
+ 					}
 				}
 				break;
 			default:
