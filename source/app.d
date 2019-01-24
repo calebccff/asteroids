@@ -60,7 +60,7 @@ enum Scene{
 	gameover
 }
 struct Network{
-	string ip = "192.168.43.186";
+	string ip = "10.56.96.228";
   ushort port = 1234;
 	bool isHost = true;
 }
@@ -90,7 +90,7 @@ void setup(){
 }
 
 void gameInit(){
-	player = new Player([Keyboard.Key.W, Keyboard.Key.A, Keyboard.Key.D, Keyboard.Key.Space]);
+	player = new Player([Keyboard.Key.W, Keyboard.Key.A, Keyboard.Key.D, Keyboard.Key.Space], net.isHost?Color.Blue:Color.Red);
   asts = [];
   if(net.isHost){
   	for(int i = 0; i < 5; i++){
@@ -101,7 +101,7 @@ void gameInit(){
     buffer = new Buffer(net.isHost, net.ip, net.port);
 
 	}
-  enemy = new Player();
+  enemy = new Player(net.isHost?Color.Blue:Color.Red);
 	player.score.score = 0;
 	enemy.score.score = 0;
 	meta.frameCount = -1;
@@ -357,7 +357,7 @@ void gameHostLoop(){
   		if(a.intersects(p)){
   			if(meta.frameCount < 60){
   				asts = remove(asts, i);
-  			}else if(buffer.connected){ //I'm literally dead
+  			}else if(meta.solo || buffer.connected){ //I'm literally dead
   				scene = Scene.gameover;
   				meta.frameCount = -1;
   				asts = [];
@@ -373,7 +373,7 @@ void gameHostLoop(){
       }
   		foreach(ref bullet; pl.bullets){
   			auto b = FloatRect(bullet.pos.x, bullet.pos.y, bullet.size.x, bullet.size.x);
-  			if(b.intersects(a) && buffer.connected){
+  			if(b.intersects(a) && (meta.solo || buffer.connected)){
   				int sc = 250-50*cast(int)floor(cast(float)bullet.life/50f);
   				pl.score.score += (sc<0?50:sc);
   				bullet.life = 0;
@@ -482,13 +482,18 @@ void handleEvent(Event event){
 						 if (meta.name.length > 0) {
 						 	meta.nameConfirm = true;
 							player.score.name = meta.name;
-							string s = readText("scores.csv");
+							string s;
+							try{
+								s = readText("scores.csv");
+							}catch(FileException e){}
 							foreach (record; csvReader!(Tuple!(string, int))(s)){
 								meta.hiscores ~= Score(record[0], record[1]);
 							}
 							meta.hiscores ~= player.score;
 							sort!((a,b)=>a.score > b.score)(meta.hiscores);
-							std.file.remove("scores.csv");
+							try{
+								std.file.remove("scores.csv");
+							}catch(FileException e){}
 							File sfile = File("scores.csv", "w");
 							sfile.write(join(map!(s => s.name~","~to!string(s.score))(meta.hiscores), "\n"));
 						}

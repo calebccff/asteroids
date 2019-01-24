@@ -36,6 +36,7 @@ class Player{
         float accelFrames;
         Vector inertia;
         Keyboard.Key[4] keys; //fd, left, right, shoot
+        Color col;
 
         bool spacePressedLastFrame = false;
 
@@ -77,17 +78,18 @@ class Player{
         Score score;
     }
 
-    this(Keyboard.Key[4] ks){
+    this(Keyboard.Key[4] ks, Color col){
         this.keys = ks;
         pos = Vector(300, 300);
         inertia = Vector(0, 0);
         dir = 0;
-        this();
+        this(col);
     }
 
-    this(){
+    this(Color col){
       //For enemy player
       score = Score("Pla", 0);
+      this.col = col;
     }
 
     void set(int x, int y, double dir){
@@ -102,7 +104,7 @@ class Player{
 
     void interact(){
         if(Keyboard.isKeyPressed(keys[0])){
-            inertia.add(Vector.fromAngle(dir+PI/2).mult(3/(0.2+exp(0.8-0.3*accelFrames))));
+            inertia.add(Vector.fromAngle(dir+PI/2).mult(3/(0.6+exp(2-0.8*accelFrames))));
             accelFrames+=0.5;
         }else{
             accelFrames = 0;
@@ -158,8 +160,7 @@ class Player{
     Shape display(){
         auto shape = new RectangleShape(Vector2f(size*1.5, size));
         shape.setTexture(ship);
-
-        shape.fillColor(Color.White);
+        shape.fillColor(col);
         shape.rotation(dir*180/PI);
         shape.position = pos.as2f();
         shape.origin = Vector2f(size*1.5/2, size/2);
@@ -183,7 +184,7 @@ class Asteroid{
 
     this(){
         pos = Vector(uniform(0, sWidth), uniform(0, sHeight));
-        vel = Vector.fromAngle(uniform(0, PI*2)).mult(uniform(0.5, 2));
+        vel = Vector.fromAngle(uniform(0, PI*2)).mult(uniform(0.5, 1.5));
 
         radius = uniform(40, 100);
         rot = uniform(0, 360);
