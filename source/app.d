@@ -228,6 +228,7 @@ void netRecv(){
     for(int i = 0; i < r.length; i+=PACKET_LENGTH){ //5*4
       ubyte type = r[i];
       if(type == 99 || r.length < 4) {break;} //No data
+			writeln("RECV: ", r);
       ubyte[] bsl = r[i+1..i+PACKET_LENGTH]; //Slice off first byte
 
       //writeln("RECV: ", type, "@", bsl);
@@ -279,26 +280,26 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
 			buffer.add(to!int(player.pos.x));
 			buffer.add(to!int(player.pos.y));
 			buffer.add(to!int(player.dir/PI*1000));
-			buffer.pad(1);
+			buffer.pad(4);
 			//buffer.flush(net.ip, net.port);
 
 			buffer.startPacket(Buffer.PacketType.Bullets);
 			buffer.add(-1000);
 			buffer.add(-1000);
-			buffer.pad(2);
+			buffer.pad(8);
 			foreach(b; player.bullets){
 				buffer.startPacket(Buffer.PacketType.Bullets);
 				buffer.add(to!int(b.pos.x));
 				buffer.add(to!int(b.pos.y));
 				buffer.add(to!int(b.vel.heading()/PI*1000));
-				buffer.pad(1);
+				buffer.pad(4);
 			}
 			//buffer.flush(net.ip, net.port);
 			if(net.isHost){
 				buffer.startPacket(Buffer.PacketType.Asteroids);
 				buffer.add(-1000);
 				buffer.add(-1000);
-				buffer.pad(2);
+				buffer.pad(8);
 				foreach(a; asts){
 					buffer.startPacket(Buffer.PacketType.Asteroids);
 					buffer.add(to!int(a.pos.x));
@@ -324,7 +325,7 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
 			buffer.pad(PACKET_LENGTH-1);
 			break;
 	}
-    buffer.flush(net.ip, net.port);
+  buffer.flush(net.ip, net.port);
 }
 
 void gameHostLoop(){
