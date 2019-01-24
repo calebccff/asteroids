@@ -25,6 +25,11 @@ void objectInit(int w, int h){
     tAst.loadFromFile("sprites/Asteroid.png");
 }
 
+struct Score{
+  string name;
+  int score;
+}
+
 class Player{
     private{
         double dirvel;
@@ -69,6 +74,7 @@ class Player{
         Vector pos;
         double dir;
         int size = 30;
+        Score score;
     }
 
     this(Keyboard.Key[4] ks){
@@ -76,10 +82,12 @@ class Player{
         pos = Vector(300, 300);
         inertia = Vector(0, 0);
         dir = 0;
+        this();
     }
 
     this(){
       //For enemy player
+      score = Score("Pla", 0);
     }
 
     void set(int x, int y, double dir){

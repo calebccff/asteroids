@@ -28,12 +28,13 @@ class Buffer{
     }
 
     static enum PacketType{
-        Player    =10,
-        Bullets   =21,
-        Asteroids =22,
-        GameStart =30,
-        GameOver  =31,
-        NoData    =99
+        Player    =10, //Player position
+        PData     =11, //Score, lives
+        Bullets   =21, //Bullet data
+        Asteroids =22, //Asteroids data
+        GameStart =30, //
+        GameOver  =31, //When 1 player dies
+        NoData    =99 //Empty packet
     }
 
     void listen(){
@@ -82,6 +83,11 @@ class Buffer{
       buffer ~= (i >> 16) & 0xff;
       buffer ~= (i >> 8 ) & 0xff;
       buffer ~= (i      ) & 0xff;
+    }
+    void pad(ushort bytes){
+      for(ushort i=0;i<bytes;i++){
+        buffer ~= 0;
+      }
     }
     static int conv2int(ubyte[] x){
       int i = 0;
