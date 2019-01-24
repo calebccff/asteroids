@@ -327,7 +327,7 @@ void gameHostLoop(){
   foreach(pl; [player, enemy]){
   	for(long i = asts.length-1; i >= 0; i--){
   		auto a = FloatRect(asts[i].pos.x, asts[i].pos.y, sqrt(0.6f*sq(asts[i].radius)), sqrt(0.6f*sq(asts[i].radius)));
-  		auto p = FloatRect(player.pos.x-player.size/2, player.pos.y-player.size/2, player.size, player.size);
+  		auto p = FloatRect(pl.pos.x-pl.size/2, pl.pos.y-pl.size/2, pl.size, pl.size);
   		if(a.intersects(p)){
   			if(meta.frameCount < 60){
   				asts = remove(asts, i);
@@ -346,7 +346,7 @@ void gameHostLoop(){
     		ahitbox.position = Vector2f(asts[i].pos.x, asts[i].pos.y);
   			window.draw(ahitbox);
       }
-  		foreach(ref bullet; player.bullets){
+  		foreach(ref bullet; pl.bullets){
   			auto b = FloatRect(bullet.pos.x, bullet.pos.y, bullet.size.x, bullet.size.x);
   			if(b.intersects(a)){
   				int sc = 250-50*cast(int)floor(cast(float)bullet.life/50f);
