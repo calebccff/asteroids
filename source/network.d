@@ -85,8 +85,8 @@ class Buffer{
       buffer ~= (i      ) & 0xff;
     }
     void add(string s){
-      foreach(c; s){
-        buffer ~= c;
+      for(int i = 0; i < 4; i++){
+        buffer ~= i<s.length?s[i]:0;
       }
     }
     void pad(ushort bytes){
