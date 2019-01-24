@@ -101,7 +101,7 @@ void gameInit(){
     buffer = new Buffer(net.isHost, net.ip, net.port);
 
 	}
-  enemy = new Player(net.isHost?Color.Blue:Color.Red);
+  enemy = new Player(net.isHost?Color.Red:Color.Blue);
 	player.score.score = 0;
 	enemy.score.score = 0;
 	meta.frameCount = -1;
@@ -309,7 +309,8 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
 					buffer.add(a.radius);
 				}
 				buffer.startPacket(Buffer.PacketType.PData);
-				buffer.pad(8);
+				buffer.add(player.score.name);
+				buffer.add(player.score.score);
 				buffer.add(enemy.score.name);
 				buffer.add(enemy.score.score);
 			}
