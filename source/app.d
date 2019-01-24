@@ -274,7 +274,7 @@ void netRecv(){
 void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
 	switch(scene){
 		case Scene.gameHost:
-		case Scene.gameClient;
+		case Scene.gameClient:
 			buffer.startPacket(Buffer.PacketType.Player); //Player data
 			buffer.add(to!int(player.pos.x));
 			buffer.add(to!int(player.pos.y));
@@ -309,10 +309,10 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
 			}
 		break;
 		case Scene.gameover:
-			if(!meta.nameConfirm)
+			if(!meta.nameConfirm){
 				buffer.startPacket(Buffer.PacketType.GameOver);
 				buffer.pad(PACKET_LENGTH-1);
-			else{
+			}else{
 				buffer.startPacket(Buffer.PacketType.PData);
 				buffer.add(player.score.name);
 				buffer.add(player.score.score);
