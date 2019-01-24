@@ -3,7 +3,7 @@
 		"caleb"
 	],
 	"copyright": "Copyright © 2019, caleb",
-	"dependencies": {
+  "dependencies": {
 		"dsfml": "~>2.1.1"
 	},
 	"description": "Simple multiplayer game",

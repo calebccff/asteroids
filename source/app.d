@@ -9,7 +9,7 @@ import dsfml.window;
 //Standard libs
 import std.stdio;
 import std.math;
-import core.thread;
+//import core.thread;
 import std.algorithm : remove, sort;
 import std.algorithm.iteration;
 import std.random : uniform;
@@ -41,6 +41,7 @@ Score score;
 
 //Settings
 const bool DEBUG=false;
+const ushort PACKET_LENGTH=17;
 RectangleShape ahitbox;
 
 //Meta
@@ -224,7 +225,32 @@ void startup(){
 }*/
 
 void netRecv(){
-	for(;;){
+  for(int c=0;;c++){
+    ubyte[] r = buffer.receive();
+    enemy.bullets = [];
+    for(int i = 0; i < r.length; i+=PACKET_LENGTH){ //5*4
+      ubyte[] bsl = r[i+1..i+PACKET_LENGTH]; //Slice off first byte
+  		ubyte type = r[i];
+      if(type == 99 || r.length < 4) break; //No data
+      writeln("RECV: ", type, "@", bsl);
+      alias ci = Buffer.conv2int;
+  		switch(type){
+  			case Buffer.PacketType.Player: //Last 4 bytes not used
+  				enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
+  				break;
+  			case Buffer.PacketType.Bullets:
+  				enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
+  				break;
+  			case Buffer.PacketType.Asteroids:
+  				break;
+  			default:
+  				break;
+  		}
+    }
+  }
+
+
+	for(int c=0;;c++){
 		ubyte[] r = buffer.receive();
 		ubyte type = r[0];
 		ubyte[] recv = r[1..$];
@@ -246,44 +272,35 @@ void netRecv(){
 			default:
 				break;
 		}
-    core.thread.Thread.sleep(dur!("msecs")(1000/200));
+    //sleep(milliseconds(5));
 	}
 }
 
-void netSend(){
-  //
-  // switch(meta.frameCount%3){
-  //   case 0:
-  while(1){
-      buffer.startPacket(Buffer.PacketType.Player); //Player data
-      buffer.add(to!int(player.pos.x));
-      buffer.add(to!int(player.pos.y));
-      buffer.add(to!int(player.dir/PI*1000));
-      buffer.flush(net.ip, net.port);
-    //   break;
-    // case 1:
-      buffer.startPacket(Buffer.PacketType.Bullets);
-      foreach(b; player.bullets){
-        buffer.add(to!int(b.pos.x));
-        buffer.add(to!int(b.pos.y));
-        buffer.add(to!int(b.vel.heading()/PI*1000));
-      }
-      buffer.flush(net.ip, net.port);
-    //   break;
-    // case 2:
-      buffer.startPacket(Buffer.PacketType.Asteroids);
-      foreach(a; asts){
-        buffer.add(to!int(a.pos.x));
-        buffer.add(to!int(a.pos.y));
-        buffer.add(to!int(a.rot/PI*1000));
-      }
-      buffer.flush(net.ip, net.port);
-  //     break;
-  //   default:
-  //     break;
-  // }
-  core.thread.Thread.sleep(dur!("msecs")(1000/60));
-  }
+void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
+    buffer.startPacket(Buffer.PacketType.Player); //Player data
+    buffer.add(to!int(player.pos.x));
+    buffer.add(to!int(player.pos.y));
+    buffer.add(to!int(player.dir/PI*1000));
+    buffer.add(0); //Padding
+    //buffer.flush(net.ip, net.port);
+
+    buffer.startPacket(Buffer.PacketType.Bullets);
+    foreach(b; player.bullets){
+      buffer.add(to!int(b.pos.x));
+      buffer.add(to!int(b.pos.y));
+      buffer.add(to!int(b.vel.heading()/PI*1000));
+      buffer.add(0); //Padding
+    }
+    //buffer.flush(net.ip, net.port);
+
+    buffer.startPacket(Buffer.PacketType.Asteroids);
+    foreach(a; asts){
+      buffer.add(to!int(a.pos.x));
+      buffer.add(to!int(a.pos.y));
+      buffer.add(to!int(a.rot/PI*1000));
+      buffer.add(0); //Padding
+    }
+    buffer.flush(net.ip, net.port);
 }
 
 void gameHostLoop(){
@@ -293,10 +310,8 @@ void gameHostLoop(){
       window.clear();
       text("Waiting for client...", 32, meta.width/2, meta.height*0.7);
     }
-    if(frameCount == 0){
-      task!netRecv().executeInNewThread();
-  		task!netSend().executeInNewThread();
-    }
+    netRecv();
+    netSend();
   }
 
 	player.interact();
