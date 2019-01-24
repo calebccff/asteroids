@@ -257,8 +257,8 @@ void netRecv(){
   				break;
 				case Buffer.PacketType.PData:
 					enemy.score.name = assumeUTF(bsl[0..4]);
-					enemy.score.score = ci(bsl[4..8]);
-					player.score.score = ci(bsl[12..16]);
+					enemy.score.score = ci(bsl[4..8])==0?enemy.score.score:ci(bsl[4..8]);
+					player.score.score = ci(bsl[12..16])==0?player.score.score:ci(bsl[12..16]);
 					break;
 				case Buffer.PacketType.GameOver:
 					scene = Scene.gameover;
