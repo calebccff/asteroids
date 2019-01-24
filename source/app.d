@@ -236,10 +236,10 @@ void netRecv(){
       alias ci = Buffer.conv2int;
   		switch(type){
   			case Buffer.PacketType.Player: //Last 4 bytes not used
-  				enemy.set(ci(recv[0..4]), ci(recv[4..8]), ci(recv[8..12])/1000f*PI);
+  				enemy.set(ci(bsl[0..4]), ci(bsl[4..8]), ci(bsl[8..12])/1000f*PI);
   				break;
   			case Buffer.PacketType.Bullets:
-  				enemy.newBullet(ci(recv[i..i+4]), ci(recv[i+4..i+8]), ci(recv[i+8..i+12]));
+  				enemy.newBullet(ci(bsl[i..i+4]), ci(bsl[i+4..i+8]), ci(bsl[i+8..i+12]));
   				break;
   			case Buffer.PacketType.Asteroids:
   				break;
@@ -312,6 +312,11 @@ void gameHostLoop(){
     }
     netRecv();
     netSend();
+    window.draw(enemy.display());
+
+  	foreach(ref bullet; enemy.bullets){
+  		window.draw(bullet.display());
+  	}
   }
 
 	player.interact();
@@ -349,11 +354,6 @@ void gameHostLoop(){
 			}
 		}
 
-	}
-  window.draw(enemy.display());
-
-	foreach(ref bullet; enemy.bullets){
-		window.draw(bullet.display());
 	}
 	window.draw(player.display());
 	foreach(ref bullet; player.bullets){

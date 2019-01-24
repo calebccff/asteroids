@@ -94,7 +94,7 @@ class Player{
 
     void interact(){
         if(Keyboard.isKeyPressed(keys[0])){
-            inertia.add(Vector.fromAngle(dir+PI/2).mult(3/(0.6+exp(1.4-0.3*accelFrames))));
+            inertia.add(Vector.fromAngle(dir+PI/2).mult(3/(0.2+exp(0.8-0.3*accelFrames))));
             accelFrames+=0.5;
         }else{
             accelFrames = 0;
