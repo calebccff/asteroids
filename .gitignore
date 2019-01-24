@@ -9,7 +9,9 @@ asteroids.dll
 asteroids.a
 asteroids.lib
 asteroids-test-*
+float-asteroids
 *.exe
 *.o
 *.obj
 *.lst
+dsfml/
