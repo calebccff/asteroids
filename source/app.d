@@ -255,6 +255,7 @@ void netRecv(){
 				case Buffer.PacketType.PData:
 					enemy.score.name = assumeUTF(bsl[0..4]);
 					enemy.score.score = ci(bsl[4..8]);
+					player.score.score = ci(bsl[12..16]);
 					break;
 				case Buffer.PacketType.GameOver:
 					scene = Scene.gameover;
@@ -307,6 +308,10 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
 					buffer.add(to!int(a.rot/PI*1000));
 					buffer.add(a.radius);
 				}
+				buffer.startPacket(Buffer.PacketType.PData);
+				buffer.pad(8);
+				buffer.add(enemy.score.name);
+				buffer.add(enemy.score.score);
 			}
 		break;
 		case Scene.gameover:
