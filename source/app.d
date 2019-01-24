@@ -20,6 +20,7 @@ import std.file;
 import std.array;
 import std.traits; //enum members
 import std.parallelism : task, taskPool;
+import std.string;
 //Networking
 import std.socket;
 
@@ -70,6 +71,7 @@ struct Meta{
 	int frameToggle = 30;
 	Score[] hiscores;
   bool solo = false;
+	string name = "AAA";
 }
 
 void setup(){
@@ -251,7 +253,7 @@ void netRecv(){
           asts ~= new Asteroid(ci(bsl[0..4]), ci(bsl[4..8]), ci(bsl[8..12]), ci(bsl[12..16]));
   				break;
 				case Buffer.PacketType.PData:
-					player.score.name = bsl[0..4].assumeUTF;
+					player.score.name = assumeUTF(bsl[0..4]);
 					player.score.score = ci(bsl[4..8]);
 					break;
   			default:
@@ -300,6 +302,10 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
         buffer.add(to!int(a.rot/PI*1000));
         buffer.add(a.radius);
       }
+			buffer.startPacket(Buffer.PacketType.PData);
+			buffer.add(meta.name);
+			buffer.add(enemy.score.score);
+			buffer.pad(PACKET_LENGTH-2);
     }
     buffer.flush(net.ip, net.port);
 }
@@ -389,7 +395,7 @@ void gameClientLoop(){
   }
   netRecv();
   netSend();
-  writeln(asts.length);
+	
 	player.interact();
   for(long i=0; i < asts.length;i++){
     window.draw(asts[i].display());

@@ -73,7 +73,7 @@ class Buffer{
         buffer ~= t & 0xff;
     }
     void flush(string ip, ushort port){
-      //writeln("SEND:",buffer);
+      writeln("SEND:",buffer);
       //other.send(buffer);
       net.sendTo(buffer, new InternetAddress(ip, port));
       buffer = [];
@@ -83,6 +83,11 @@ class Buffer{
       buffer ~= (i >> 16) & 0xff;
       buffer ~= (i >> 8 ) & 0xff;
       buffer ~= (i      ) & 0xff;
+    }
+    void add(string s){
+      foreach(c; s){
+        buffer ~= c;
+      }
     }
     void pad(ushort bytes){
       for(ushort i=0;i<bytes;i++){
