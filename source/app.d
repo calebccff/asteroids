@@ -41,7 +41,7 @@ Score score;
 
 //Settings
 const bool DEBUG=false;
-const ushort PACKET_LENGTH=13;
+const ushort PACKET_LENGTH=17;
 RectangleShape ahitbox;
 
 //Meta
@@ -249,6 +249,7 @@ void netRecv(){
   				enemy.newBullet(ci(bsl[0..4]), ci(bsl[4..8]), ci(bsl[8..12]));
   				break;
   			case Buffer.PacketType.Asteroids:
+          if(net.isHost) break;
           if(!resetAsts){
             resetAsts = true;
             asts = [];
@@ -263,7 +264,7 @@ void netRecv(){
   if(!resetBullets){
     enemy.bullets = [];
   }
-  if(!resetAsts){
+  if(!resetAsts && !net.isHost){
     asts = [];
   }
 }
@@ -284,13 +285,14 @@ void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
       buffer.add(0);
     }
     //buffer.flush(net.ip, net.port);
-
-    foreach(a; asts){
-      buffer.startPacket(Buffer.PacketType.Asteroids);
-      buffer.add(to!int(a.pos.x));
-      buffer.add(to!int(a.pos.y));
-      buffer.add(to!int(a.rot/PI*1000));
-      buffer.add(to!int(a.radius));
+    if(net.isHost){
+      foreach(a; asts){
+        buffer.startPacket(Buffer.PacketType.Asteroids);
+        buffer.add(to!int(a.pos.x));
+        buffer.add(to!int(a.pos.y));
+        buffer.add(to!int(a.rot/PI*1000));
+        buffer.add(a.radius);
+      }
     }
     buffer.flush(net.ip, net.port);
 }
