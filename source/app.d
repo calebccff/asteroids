@@ -71,7 +71,8 @@ struct Meta{
 	int frameToggle = 30;
 	Score[] hiscores;
   bool solo = false;
-	string name = "AAA";
+	string name = "";
+	bool nameConfirm = false;
 }
 
 void setup(){
@@ -131,6 +132,10 @@ void text(string t, int s, double x, double y, TextAlign a){
 
 void draw(int fc){
 	meta.frameCount++;
+	if(scene != Scene.menu){
+		netRecv();
+  	netSend();
+	}
 	switch(scene){
 		case Scene.menu:
 			menu();
@@ -166,24 +171,18 @@ void menu(){
 }
 
 void gameover(){
-	text("GAMEOVER", 128, meta.width/2, meta.height*0.4);
-	text("SCORE: "~to!string(player.score.score), 36, meta.width/2, meta.height*0.55);
+	if (meta.nameConfirm) {
+		text("GAMEOVER", 128, meta.width/2, meta.height*0.3);
+	} else {
+		string s = meta.name~(meta.frameCount%40<20?"":"|");
+		text(s, 128, meta.width/2, meta.height*0.3);
+	}
+	text(player.score.name~to!string(player.score.score), 36, meta.width/2, meta.height*0.55);
+	text(enemy.score.name~to!string(enemy.score.score), 36, meta.width/2, meta.height*0.6);
 	if(frameCount%meta.frameToggle<meta.frameToggle/2){
 		text("HIGHSCORES ", 42, meta.width/2, meta.height*0.65);
 	}
-	if(meta.frameCount == 0){
-    {
-  		string s = readText("scores.csv");
-      foreach (record; csvReader!(Tuple!(string, int))(s)){
-        meta.hiscores ~= Score(record[0], record[1]);
-      }
-    }
-    meta.hiscores ~= player.score;
-    sort!((a,b)=>a.score > b.score)(meta.hiscores);
-    std.file.remove("scores.csv");
-    File s = File("scores.csv", "w");
-    s.write(join(map!(s => s.name~","~to!string(s.score))(meta.hiscores), "\n"));
-	}
+	
 	{
 		foreach (i, sc; meta.hiscores){
       if(i < 3)
@@ -253,8 +252,11 @@ void netRecv(){
           asts ~= new Asteroid(ci(bsl[0..4]), ci(bsl[4..8]), ci(bsl[8..12]), ci(bsl[12..16]));
   				break;
 				case Buffer.PacketType.PData:
-					player.score.name = assumeUTF(bsl[0..4]);
-					player.score.score = ci(bsl[4..8]);
+					enemy.score.name = assumeUTF(bsl[0..4]);
+					enemy.score.score = ci(bsl[4..8]);
+					break;
+				case Buffer.PacketType.GameOver:
+					scene = Scene.gameover;
 					break;
   			default:
   				break;
@@ -270,43 +272,58 @@ void netRecv(){
 }
 
 void netSend(){ //Each packets is 4 ints + 1 byte or 17 bytes
-    buffer.startPacket(Buffer.PacketType.Player); //Player data
-    buffer.add(to!int(player.pos.x));
-    buffer.add(to!int(player.pos.y));
-    buffer.add(to!int(player.dir/PI*1000));
-    buffer.pad(1);
-    //buffer.flush(net.ip, net.port);
+	switch(scene){
+		case Scene.gameHost:
+		case Scene.gameClient;
+			buffer.startPacket(Buffer.PacketType.Player); //Player data
+			buffer.add(to!int(player.pos.x));
+			buffer.add(to!int(player.pos.y));
+			buffer.add(to!int(player.dir/PI*1000));
+			buffer.pad(1);
+			//buffer.flush(net.ip, net.port);
 
-    buffer.startPacket(Buffer.PacketType.Bullets);
-    buffer.add(-1000);
-    buffer.add(-1000);
-    buffer.pad(2);
-    foreach(b; player.bullets){
-      buffer.startPacket(Buffer.PacketType.Bullets);
-      buffer.add(to!int(b.pos.x));
-      buffer.add(to!int(b.pos.y));
-      buffer.add(to!int(b.vel.heading()/PI*1000));
-      buffer.pad(1);
-    }
-    //buffer.flush(net.ip, net.port);
-    if(net.isHost){
-      buffer.startPacket(Buffer.PacketType.Asteroids);
-      buffer.add(-1000);
-      buffer.add(-1000);
-      buffer.pad(1);
-      buffer.pad(1);
-      foreach(a; asts){
-        buffer.startPacket(Buffer.PacketType.Asteroids);
-        buffer.add(to!int(a.pos.x));
-        buffer.add(to!int(a.pos.y));
-        buffer.add(to!int(a.rot/PI*1000));
-        buffer.add(a.radius);
-      }
-			buffer.startPacket(Buffer.PacketType.PData);
-			buffer.add(meta.name);
-			buffer.add(enemy.score.score);
-			buffer.pad(PACKET_LENGTH-2);
-    }
+			buffer.startPacket(Buffer.PacketType.Bullets);
+			buffer.add(-1000);
+			buffer.add(-1000);
+			buffer.pad(2);
+			foreach(b; player.bullets){
+				buffer.startPacket(Buffer.PacketType.Bullets);
+				buffer.add(to!int(b.pos.x));
+				buffer.add(to!int(b.pos.y));
+				buffer.add(to!int(b.vel.heading()/PI*1000));
+				buffer.pad(1);
+			}
+			//buffer.flush(net.ip, net.port);
+			if(net.isHost){
+				buffer.startPacket(Buffer.PacketType.Asteroids);
+				buffer.add(-1000);
+				buffer.add(-1000);
+				buffer.pad(2);
+				foreach(a; asts){
+					buffer.startPacket(Buffer.PacketType.Asteroids);
+					buffer.add(to!int(a.pos.x));
+					buffer.add(to!int(a.pos.y));
+					buffer.add(to!int(a.rot/PI*1000));
+					buffer.add(a.radius);
+				}
+			}
+		break;
+		case Scene.gameover:
+			if(!meta.nameConfirm)
+				buffer.startPacket(Buffer.PacketType.GameOver);
+				buffer.pad(PACKET_LENGTH-1);
+			else{
+				buffer.startPacket(Buffer.PacketType.PData);
+				buffer.add(player.score.name);
+				buffer.add(player.score.score);
+				buffer.pad(8);
+			}
+			break;
+		default:
+			buffer.startPacket(Buffer.PacketType.NoData);
+			buffer.pad(PACKET_LENGTH-1);
+			break;
+	}
     buffer.flush(net.ip, net.port);
 }
 
@@ -317,8 +334,8 @@ void gameHostLoop(){
       window.clear();
       text("Waiting for client...", 32, meta.width/2, meta.height*0.7);
     }
-    netRecv();
-    netSend();
+    //netRecv();
+    //netSend();
     window.draw(enemy.display());
 
   	foreach(ref bullet; enemy.bullets){
@@ -393,8 +410,6 @@ void gameClientLoop(){
     text("Connecting...", 32, meta.width/2, meta.height*0.7);
     //Skip first frame to let the screen redraw
   }
-  netRecv();
-  netSend();
 	
 	player.interact();
   for(long i=0; i < asts.length;i++){
@@ -413,7 +428,13 @@ void gameClientLoop(){
 }
 
 void handleEvent(Event event){
-	if(event.type == Event.EventType.KeyPressed){
+	if (event.type == Event.EventType.TextEntered){
+		if (scene == Scene.gameover) {
+			if (meta.name.length < 4 && event.text.unicode > 32) {
+				meta.name ~= event.text.unicode;
+			}
+		}
+	} else if(event.type == Event.EventType.KeyPressed){
 		switch(scene){
 			case Scene.menu:
 				if(event.key.code == Keyboard.Key.Escape || event.key.code == Keyboard.Key.Q){
@@ -442,13 +463,36 @@ void handleEvent(Event event){
 				}
 				break;
 			case Scene.gameover:
-				if(event.key.code == Keyboard.Key.Escape || event.key.code == Keyboard.Key.Q){
-					window.close();
-					return;
-				}
-				if(meta.frameCount > 30){
-					player.score.score = 0;
-					scene = Scene.menu;
+				if (meta.nameConfirm) {
+					if(event.key.code == Keyboard.Key.Escape || event.key.code == Keyboard.Key.Q){
+						window.close();
+						return;
+					} else if(meta.frameCount > 30){
+						player.score.score = 0;
+						meta.name = "";
+						meta.nameConfirm = false;
+						scene = Scene.menu;
+					}
+				} else {
+					 if (event.key.code == Keyboard.Key.Return) {
+						 if (meta.name.length > 0) {
+						 	meta.nameConfirm = true;
+							player.score.name = meta.name;
+							string s = readText("scores.csv");
+							foreach (record; csvReader!(Tuple!(string, int))(s)){
+								meta.hiscores ~= Score(record[0], record[1]);
+							}
+							meta.hiscores ~= player.score;
+							sort!((a,b)=>a.score > b.score)(meta.hiscores);
+							std.file.remove("scores.csv");
+							File sfile = File("scores.csv", "w");
+							sfile.write(join(map!(s => s.name~","~to!string(s.score))(meta.hiscores), "\n"));
+						}
+					 } else if (event.key.code == Keyboard.Key.BackSpace) {
+ 						if (meta.name.length > 0) {
+							meta.name = meta.name[0..$-1].dup;
+						}
+ 					}
 				}
 				break;
 			default:
